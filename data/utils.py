@@ -74,6 +74,43 @@ def get_generation_models(dataset_name):
     else:
         raise ValueError(f"Dataset {dataset_name} is not supported")
 
+def get_revised_generation_models(dataset_name):
+    return {
+        "fake": {
+            "train": [
+                "Pika", 
+                "SEINE", 
+            ],
+            "val": [
+                "Pika", 
+                "SEINE",
+            ],
+            "test": [
+                "ModelScope", 
+                "MorphStudio",  
+                "MoonValley", 
+                "HotShot",
+                "Show_1",
+                "Gen2", 
+                "Crafter",
+                "Lavie", 
+                "Sora", 
+                "WildScrape"
+            ]
+        },
+        "real": {
+            "train": [
+                "Kinetics-400"
+            ],
+            "val": [
+                "Kinetics-400"
+            ],
+            "test": [
+                "MSR-VTT"
+            ]
+        }
+    }
+
 def get_all_generation_models(dataset_name):
     generation_models = get_generation_models(dataset_name)
     return [

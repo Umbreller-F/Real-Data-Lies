@@ -171,7 +171,7 @@ class ScoreFeaturesDataset(Dataset):
         
         self.input_dir = f"{self.cache_path}/input"
         self.output_file = f"{self.cache_path}/output.npy"
-        print(self.cache_path)
+        logger.info(f"Score features cache path: {self.cache_path}")
         os.makedirs(self.input_dir, exist_ok=True)
         
     def _preprocess_frame_from_path(self, frame_path):

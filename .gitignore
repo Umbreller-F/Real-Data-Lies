@@ -179,3 +179,8 @@ results/
 exp_results/
 test/
 Baselines/
+split/
+nohup_logs/
+*.csv
+*.sh
+train.pid

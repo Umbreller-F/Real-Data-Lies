@@ -640,7 +640,6 @@ class SwinTransformer(nn.Module):
         return {'relative_position_bias_table'}
 
     def create_thumbnail(self, x):
-        # import pdb;pdb.set_trace()
         input_size = x.shape[-2:]
         if input_size != to_2tuple(self.img_size):
             x = nn.functional.interpolate(x, size=self.img_size,mode='bilinear')

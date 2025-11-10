@@ -191,7 +191,7 @@ def process_video2frames(dir, ids, num_frames, output_base_dir):
     pool.join()
     
 if __name__ == "__main__":
-    for dataset_name in ["GenVideo"]:
+    '''for dataset_name in ["GenVideo"]:
         for generation_model in get_all_generation_models(dataset_name):
             for mode in ["train", "test", "val"]:
                 dataset = VideoFramesDataset(
@@ -200,5 +200,12 @@ if __name__ == "__main__":
                     dataset_name=dataset_name, 
                     mode=mode, 
                     len_load=4,
-                    )
+                    )'''
             # print(f"Video 0: {dataset[0]}")
+    dataset = VideoFramesDataset(
+                    data_path=f"../Data/GenVideo", 
+                    generation_model="MSR-VTT", 
+                    dataset_name="GenVideo", 
+                    mode="test", 
+                    len_load=4550,
+                    )

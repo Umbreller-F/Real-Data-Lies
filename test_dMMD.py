@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.utils import get_generation_models
+from data.utils import get_generation_models, get_revised_generation_models
 from omegaconf import DictConfig
 from models.deep_mmd import deep_MMD
 from models.tall import SingleSwinBlockDiscriminator
@@ -38,6 +38,7 @@ def main(cfg: DictConfig):
                         img_size=cfg.model.img_size, 
                         is_yy_zero=cfg.model.is_yy_zero,
                         is_smooth=cfg.model.is_smooth)
+    # breakpoint()
     model.load_state_dict(torch.load(cfg.ckpt_path, weights_only=True))
     if torch.cuda.device_count() >= cfg.trainer.num_gpus and cfg.trainer.num_gpus > 1:
         logger.info(f"Using {cfg.trainer.num_gpus} GPUs for data parallelism.")
@@ -46,19 +47,23 @@ def main(cfg: DictConfig):
     model.eval()
     
     # ----------------------------------- Data ----------------------------------- #
-    generation_models = get_generation_models(cfg.data.dataset_name)
+    if not cfg.revise:
+        generation_models = get_generation_models(cfg.data.dataset_name)
+    else:
+        generation_models = get_revised_generation_models(cfg.data.dataset_name)
+    
     if cfg.data.get("ref_models", None) is not None:
         ref_dataloaders = get_ref_dataloaders(cfg.data, 
                                               cfg.data.ref_models,
-                                              mode="test",)
+                                              mode=cfg.data.ref_mode,)
     else:
         ref_dataloader = get_ref_dataloader(cfg.data, 
                                         cfg.data.ref_model,
-                                        mode="val",
+                                        mode=cfg.data.ref_mode,
                                         resolution_size=cfg.data.resolution_size)
     test_dataloaders = {}
     for fake_model in generation_models["fake"]["test"]:
-        for real_model in get_generation_models(cfg.data.dataset_name)["real"]["test"]:
+        for real_model in generation_models["real"]["test"]:
             real_model = cfg.data.test_real_model
             if fake_model == "Sora":
                 load_len = 56

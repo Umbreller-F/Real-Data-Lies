@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.utils import get_generation_models
+from data.utils import get_generation_models, get_revised_generation_models
 from omegaconf import DictConfig
 from models.deep_mmd import deep_MMD
 from models.discriminators import SWINDiscriminator
@@ -85,20 +85,39 @@ def main(cfg: DictConfig):
                                         filter_frames=filter_frames,
                                         resolution_size=cfg.data.resolution_size)                              
     val_dataloaders = {}
-    generation_models = get_generation_models(cfg.data.dataset_name)
-    for fake_model in generation_models["fake"]["val"]:
-        for real_model in get_generation_models(cfg.data.dataset_name)["real"]["test"]:
-            val_datasets = get_score_datasets(cfg.data, 
-                                              "val",
-                                              real_model=real_model,
-                                              generation_model=fake_model,
-                                              load_len=cfg.data.val_load_len,
-                                              filter=False,
-                                              pn_ratio=1,
-                                              filter_frames=filter_frames,
-                                              resolution_size=cfg.data.resolution_size,)
-            val_loaders = get_data_loaders_for_mmd(cfg.data, val_datasets, batch_size=cfg.data.val_batch_size)
-            val_dataloaders[f"{fake_model}/{real_model}"] = val_loaders
+    if not cfg.revise:
+        generation_models = get_generation_models(cfg.data.dataset_name)
+    else:
+        generation_models = get_revised_generation_models(cfg.data.dataset_name)
+    
+    if not cfg.revise:
+        for fake_model in generation_models["fake"]["val"]:
+            for real_model in get_generation_models(cfg.data.dataset_name)["real"]["test"]:
+                val_datasets = get_score_datasets(cfg.data, 
+                                                "val",
+                                                real_model=real_model,
+                                                generation_model=fake_model,
+                                                load_len=cfg.data.val_load_len,
+                                                filter=False,
+                                                pn_ratio=1,
+                                                filter_frames=filter_frames,
+                                                resolution_size=cfg.data.resolution_size,)
+                val_loaders = get_data_loaders_for_mmd(cfg.data, val_datasets, batch_size=cfg.data.val_batch_size)
+                val_dataloaders[f"{fake_model}/{real_model}"] = val_loaders
+    else:
+        real_model = generation_models["real"]["val"][0]
+        fake_model = cfg.data.generation_model
+        val_datasets = get_score_datasets(cfg.data, 
+                                        "val",
+                                        real_model=real_model,
+                                        generation_model=fake_model,
+                                        load_len=cfg.data.val_load_len,
+                                        filter=False,
+                                        pn_ratio=1,
+                                        filter_frames=filter_frames,
+                                        resolution_size=cfg.data.resolution_size,)
+        val_loaders = get_data_loaders_for_mmd(cfg.data, val_datasets, batch_size=cfg.data.val_batch_size)
+        val_dataloaders[f"{fake_model}/{real_model}"] = val_loaders
 
     # ----------------------------------- Train ---------------------------------- #
     if cfg.trainer.optimizer.name == "adam":

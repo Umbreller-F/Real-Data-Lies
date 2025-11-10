@@ -2,29 +2,25 @@ import os
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, ConcatDataset
-from typing import List, Optional, Callable
 from data.utils import *
 from pprint import pprint as print
 from loguru import logger
 from torchvision import transforms
 
-class VideoTensorDataset(Dataset):
+class ImageDataset(Dataset):
     def __init__(
         self,
         data_path:str,
         dataset_name:str="GenVideo",
         generation_model:str="None",
-        verbose:bool=False,
         mode:str="train",
         num_frames: int=8,
-        transform: Optional[Callable] = None,
         load_len: int=None,
         input_shape: tuple=(224, 224)):
         super().__init__()
         self.data_path = data_path
         self.dataset_name = dataset_name
         self.generation_model = generation_model
-        self.verbose = verbose
         self.mode = mode
         self.num_frames = num_frames
         self.input_shape = input_shape
@@ -35,6 +31,8 @@ class VideoTensorDataset(Dataset):
                             mean=[0.485, 0.456, 0.406],  # Mean of ImageNet
                             std=[0.229, 0.224, 0.225]),    # Std of ImageNet
                             ])
+        """
+        """
         
         generation_models = get_all_generation_models(self.dataset_name)
         self.label = get_label_from_generation_model(self.generation_model)
@@ -53,8 +51,13 @@ class VideoTensorDataset(Dataset):
             key=lambda x: os.path.basename(x)  # sort by video number
         )
 
+        # limit dataset size
+        if load_len is not None:
+            logger.info(f"Limiting dataset from {len(self.video_dirs)} to {load_len} videos.")
+            self.video_dirs = self.video_dirs[:load_len]
+
         # all video frames path
-        self.video_frame_paths = []
+        self.image_paths = []
         for video_dir in self.video_dirs:
             # Check if the directory exists and contains .jpg files
             if os.path.isdir(video_dir):
@@ -64,114 +67,60 @@ class VideoTensorDataset(Dataset):
                 )
                 # Only add the frames list if it is not empty
                 if len(frames) == self.num_frames:
-                    self.video_frame_paths.append(frames)
-        if load_len is not None:
-            self.video_frame_paths = self.video_frame_paths[:load_len]
-        logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} videos / {self.generation_model}]")
+                    self.image_paths.extend(frames)
+            else:
+                logger.warning(f"Directory {video_dir} does not exist.")
+        logger.success(f"Dataset initialized: {self.dataset_name} / {self.mode} / {len(self.image_paths)} images / {len(self.video_dirs)} videos / {self.generation_model}")
             
     def __len__(self) -> int:
-        return len(self.video_frame_paths)
+        return len(self.image_paths)
 
     def __getitem__(self, idx: int) -> np.ndarray:
-        frame_paths = self.video_frame_paths[idx]
+
+        image_path = self.image_paths[idx]
         
-        video_data = []
-        for frame_path in frame_paths:
-            img = Image.open(frame_path).convert('RGB')
-            
-            if self.transform:
-                img = self.transform(img)
-            
-            # convert (H, W, C) to (C, H, W)
-            img_array = np.asarray(img)
-            video_data.append(img_array)
+        img = Image.open(image_path).convert('RGB')
+        
+        if self.transform:
+            img = self.transform(img)
+        
+        # convert (H, W, C) to (C, H, W)
+        img_array = np.asarray(img)
         
         # merge frames to video
-        return np.stack(video_data, axis=0), np.array([0 if self.label=="real" else 1], dtype=np.float32)
+        return img_array, np.array([0 if self.label=="real" else 1], dtype=np.float32)
 
-
-class VideoDataset(Dataset):
-    def __init__(self, processor, generation_model: str, data_path: str, 
-                 mode: str = "train", load_len: int = None, num_frames: int = 8, dataset_name: str = "GenVideo",):
-        super().__init__()
-        self.processor = processor
-        self.data_path = data_path
-        self.dataset_name = dataset_name
-        self.generation_model = generation_model
-        self.mode = mode
-        self.num_frames = num_frames
-        self.label = get_label_from_generation_model(self.generation_model)
-        # data_dir
-        self.base_dir = os.path.join(
-            self.data_path, 'video_frames', self.label, self.generation_model, self.mode
-        )
-        # all videos path
-        self.video_dirs = sorted(
-            [os.path.join(self.base_dir, d) for d in os.listdir(self.base_dir)],
-            key=lambda x: os.path.basename(x)  # sort by video number
-        )
-        # all video frames path
-        self.video_frame_paths = []
-        for video_dir in self.video_dirs:
-            # Check if the directory exists and contains .jpg files
-            if os.path.isdir(video_dir):
-                frames = sorted(
-                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg')],
-                    key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
-                )
-                # Only add the frames list if it is not empty
-                if len(frames) == self.num_frames:
-                    self.video_frame_paths.append(frames)
-
-        if load_len is not None:
-            self.video_frame_paths = self.video_frame_paths[:load_len]
-        logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} videos / {self.generation_model}]")
-    
-    def __len__(self) -> int:
-        return len(self.video_frame_paths)
-    
-    def __getitem__(self, idx):
-        frame_paths = self.video_frame_paths[idx]
-        
-        video_data = []
-        for frame_path in frame_paths:
-            img = Image.open(frame_path).convert('RGB')
-            video_data.append(np.array(img))
-        
-        return self.processor(images=video_data, return_tensors="pt").pixel_values, np.array([0 if self.label=="real" else 1], dtype=np.float32)
-
-
-def get_video_dataset(data_cfg, mode, processor, load_len=1000, generation_model=None, real_model=None, pn_ratio=1):
+def get_image_dataset(data_cfg, mode, load_len=1000, generation_model=None, real_model=None, pn_ratio=1, input_shape=(224,224)):
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
-    if feature_type == "video":
-        real_dataset = VideoDataset(
-            processor=processor,
+    if feature_type == "image":
+        real_dataset = ImageDataset(
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=real_model,
             mode=mode, 
             num_frames=8,
+            input_shape=input_shape,
             load_len=load_len,
             )
         fake_len = int(load_len * pn_ratio)
-        fake_dataset = VideoDataset(
-            processor=processor,
+        fake_dataset = ImageDataset(
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=generation_model,
             mode=mode, 
             num_frames=8,
+            input_shape=input_shape,
             load_len=fake_len,
             )
     return ConcatDataset([fake_dataset, real_dataset])
 
 
-def get_composite_video_dataset(data_cfg, mode, generation_models:list=[], real_model=None, input_shape=(224,224)):
+def get_composite_dataset(data_cfg, mode, generation_models:list=[], real_model=None, input_shape=(224,224)):
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
-    if feature_type == "video":
-        real_dataset = VideoDataset(
+    if feature_type == "image":
+        real_dataset = ImageDataset(
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=real_model,
@@ -182,7 +131,7 @@ def get_composite_video_dataset(data_cfg, mode, generation_models:list=[], real_
         fake_datasets = []
         for gen_model in generation_models:
             fake_datasets.append(
-                VideoDataset(
+                ImageDataset(
                     data_path=data_cfg.data_path, 
                     dataset_name=data_cfg.dataset_name,
                     generation_model=gen_model,
@@ -196,27 +145,21 @@ def get_composite_video_dataset(data_cfg, mode, generation_models:list=[], real_
 
 
 if __name__ == "__main__":
+    # python -m data.image_dataset
     from omegaconf import OmegaConf
-    from transformers import AutoImageProcessor
-
-    print("Testing VideoTensorDataset...")
-    dataset = VideoTensorDataset(data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
+    print("Testing ImageDataset...")
+    dataset = ImageDataset(data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
     print(dataset[0][0].shape)
     print(dataset[0][1])
+    print(len(dataset))
 
-    print("Testing VideoDataset...")
-    demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False), data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
-    print(demo_dataset[0][0].shape)
-    # breakpoint()
-    print(demo_dataset[0][1])
-
-    print("Testing get_video_dataset...")
+    print("Testing get_image_dataset...")
     pn_ratio = 1
     cfg = OmegaConf.create({
         'data': {
             'batch_size': 24,
             'val_batch_size': 8,
-            'feature_type': 'video',
+            'feature_type': 'image',
             'dataset_name': "GenVideo",
             'num_workers': 16,
             'data_path': "/home/ziyuanfang/Data/GenVideo",
@@ -231,11 +174,30 @@ if __name__ == "__main__":
             'diffuse_steps': 5,
         }
     })
-    real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 
+    real_fake_dataset = get_image_dataset(cfg.data, generation_model=cfg.data.generation_model, 
                                           real_model=cfg.data.train_real_model, mode="train", 
-                                          load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                          processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False))
+                                          load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
     print(f"Total training samples: {len(real_fake_dataset)}")
     print(real_fake_dataset[0][0].shape)
     print(real_fake_dataset[0][1])
+
+    print("Testing get_composite_dataset...")
+    composite_dataset = get_composite_dataset(cfg.data, mode="test", 
+                                              generation_models=[
+                                                "ModelScope", 
+                                                "MorphStudio",  
+                                                "MoonValley", 
+                                                "HotShot",
+                                                "Show_1",
+                                                "Gen2", 
+                                                "Crafter",
+                                                "Lavie", 
+                                                "Sora", 
+                                                "WildScrape"
+                                              ], 
+                                              real_model=cfg.data.test_real_model,
+                                              input_shape=(256, 256))
+    print(f"Total samples: {len(composite_dataset)}")
+    print(composite_dataset[0][0].shape)
+    print(composite_dataset[0][1])
     

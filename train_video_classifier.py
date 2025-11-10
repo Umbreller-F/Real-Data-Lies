@@ -1,25 +1,23 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models, get_revised_generation_models
-from omegaconf import DictConfig
-from models.discriminators import *
+from data import get_video_dataset
+from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
-from utils.data_utils import *
-from models.demamba import XCLIP_DeMamba
-from models.npr import resnet50_npr
-from models.tall import TALL_SWIN
-from models.stil import Det_STIL
-from omegaconf import OmegaConf
-import torch.optim as optim
+from models.timesformer import TimesformerBinaryClassifier
 from loguru import logger
 from tqdm import tqdm
-import torch.nn as nn
-import hydra
-from torchinfo import summary
-import torch
-import time  
-from torch.utils.tensorboard import SummaryWriter
-import os
 from tabulate import tabulate
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
+from torchinfo import summary
+
+import torch.nn as nn
+import torch.optim as optim
+import pandas as pd
+import hydra
+import torch
+import time
+import os
 
 @hydra.main(config_path="configs/classifier-224x224", config_name="npr.yaml", version_base=None)
 def main(cfg: DictConfig):
@@ -33,15 +31,9 @@ def main(cfg: DictConfig):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # ----------------------------------- Model ---------------------------------- #
-    if cfg.model.name == "DeMamba":
-        model = XCLIP_DeMamba()
-    elif cfg.model.name == "NPR":
-        model = resnet50_npr()
-    elif cfg.model.name == "TALL":
-        model = TALL_SWIN(pretrained=True)
-    elif cfg.model.name == "STIL":
-        model = Det_STIL()
+    # region Model
+    if 'timesformer' in cfg.model.name:
+        model = TimesformerBinaryClassifier(model_name=cfg.model.name, freeze_backbone=False)
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
@@ -57,10 +49,12 @@ def main(cfg: DictConfig):
     elif cfg.task_type == "unbalance":
         generation_models = get_generation_models(cfg.data.dataset_name)
         pn_ratio = cfg.data.pn_ratio
+    # endregion
     
-    # ----------------------------------- Data ----------------------------------- #
-    train_dataset = get_classifier_dataset(cfg.data, generation_model=cfg.data.generation_model, real_model=cfg.data.train_real_model, mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
-    train_loader = get_data_loader_for_classifer(cfg.data, train_dataset)
+    # region Data
+    train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=cfg.data.generation_model, real_model=cfg.data.train_real_model, 
+                                      mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
+    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders = {}
 
     if not cfg.revise:
@@ -71,16 +65,20 @@ def main(cfg: DictConfig):
     if not cfg.revise:
         for fake_model in generation_models["fake"]["val"]:
             for real_model in generation_models["real"]["test"]:
-                val_dataset = get_classifier_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, pn_ratio=1, load_len=cfg.data.val_load_len)
-                val_loader = get_data_loader_for_classifer(cfg.data, val_dataset)
+                val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                                                processor=model.processor, pn_ratio=1, load_len=cfg.data.val_load_len)
+                val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
                 val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     else:
         real_model = cfg.data.val_real_model
         fake_model = cfg.data.generation_model
-        val_dataset = get_classifier_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, pn_ratio=1, load_len=cfg.data.val_load_len)
-        val_loader = get_data_loader_for_classifer(cfg.data, val_dataset)
+        val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                                        processor=model.processor, pn_ratio=1, load_len=cfg.data.val_load_len)
+        val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
-    # ----------------------------------- Train ---------------------------------- #
+    # endregion
+
+    # region Train
     global_step = 0
     best_val_auroc = - float("inf")
     best_val_acc = - float("inf")
@@ -132,7 +130,6 @@ def main(cfg: DictConfig):
 
     csv_path = os.path.join(cfg.log_path, f"{cfg.experiment_name}/{cfg.data.dataset_name}/{cfg.model.name}_train_results.csv")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    import pandas as pd
     df = pd.DataFrame(val_results, columns=headers)
     df.to_csv(csv_path)
     # save model ckpts
@@ -140,6 +137,7 @@ def main(cfg: DictConfig):
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
     torch.save(model.state_dict(), model_save_path)
     logger.success(f"Model saved at {model_save_path}")
+    # endregion
     
 if __name__ == "__main__":
     main()

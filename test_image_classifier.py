@@ -1,49 +1,40 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models, get_revised_generation_models
-from omegaconf import DictConfig
-from models.discriminators import *
+from data import get_image_dataset, get_composite_dataset
+from omegaconf import DictConfig, OmegaConf
+from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from utils.train_utils import *
-from utils.data_utils import *
-from models.tall import SingleSwinBlockDiscriminator, SingleSwinBlock
-from models.demamba import XCLIP_DeMamba
-from models.npr import resnet50_npr
-from models.stil import Det_STIL
-from models.tall import CrossAttnTripleTALL_SWIN, TALL_SWIN, GatedTripleTALL_SWIN, SwinTransformer
-from omegaconf import OmegaConf
-import torch.optim as optim
+from torch.utils.data import DataLoader
 from loguru import logger
 from tqdm import tqdm
-import torch.nn as nn
-import hydra
 from tabulate import tabulate
-from torchinfo import summary
-import pandas as pd
+
+import torch.nn as nn
 import torch
-import time  
-from torch.utils.tensorboard import SummaryWriter
+import pandas as pd
 import os
+import hydra
+
 
 @hydra.main(config_path="configs/experiments", config_name="standard-Pika-TALL.yaml", version_base=None)
 def test(cfg: DictConfig):
-    # ------------------------------- Setup Logging ------------------------------ #
+    # region Setup Logging
     logger.info(OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
+    # endregion
 
-    # ------------------------------- Load Model --------------------------------- #
+    # region Load Model
     logger.info(f"Loading model: {cfg.model.name}")
-    if cfg.model.name == "DeMamba":
-        model = XCLIP_DeMamba()
-    elif cfg.model.name == "NPR":
-        model = resnet50_npr()
-    elif cfg.model.name == "TALL":
-        model = TALL_SWIN(pretrained=False)  # We will load weights from checkpoint
-    elif cfg.model.name == "STIL":
-        model = Det_STIL()
+    if cfg.model.name == "DINOv2":
+        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "DINOv3":
+        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
+    # endregion
 
-    # Load checkpoint
+    # region Load checkpoint
     ckpt_path = cfg.ckpt_path
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"Checkpoint file not found at {ckpt_path}")
@@ -56,44 +47,53 @@ def test(cfg: DictConfig):
         model.load_state_dict(checkpoint)
     model = model.to(device)
     model.eval()
+    # endregion
 
-    # ------------------------------- Load Test Data ----------------------------- #
+    # region Load Test Data
     logger.info("Loading test data...")
     if not cfg.revise:
         generation_models = get_generation_models(cfg.data.dataset_name)
     else:
         generation_models = get_revised_generation_models(cfg.data.dataset_name)
     test_dataloaders = {}
+    # Enforces stricter and more rational data isolation, as mandated by our protocol. 
+    # Always set cfg.revise to True.
     if not cfg.revise:
         for fake_model in generation_models["fake"]["test"]:
             for real_model in generation_models["real"]["test"]:
                 if fake_model == "Sora":
                     load_len = 56
-                    test_dataset = get_classifier_dataset(
-                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len
+                    test_dataset = get_image_dataset(
+                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len, input_shape=tuple(cfg.data.input_shape)
                     )
                 else:
-                    test_dataset = get_classifier_dataset(
-                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=cfg.data.test_load_len
+                    test_dataset = get_image_dataset(
+                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=cfg.data.test_load_len, input_shape=tuple(cfg.data.input_shape)
                     )
-                test_loader = get_data_loader_for_classifer(cfg.data, test_dataset)
+                test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
                 test_dataloaders[f"{fake_model}"] = test_loader
     else:
         real_model = cfg.data.test_real_model
         for fake_model in generation_models["fake"]["test"]:
             if fake_model == "Sora":
                 load_len = 56
-                test_dataset = get_classifier_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len
+                test_dataset = get_image_dataset(
+                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len, input_shape=tuple(cfg.data.input_shape)
                 )
             else:
-                test_dataset = get_classifier_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=cfg.data.test_load_len
+                test_dataset = get_image_dataset(
+                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=cfg.data.test_load_len, input_shape=tuple(cfg.data.input_shape)
                 )
-            test_loader = get_data_loader_for_classifer(cfg.data, test_dataset)
+            test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{fake_model}"] = test_loader
+        # additionally test on composite dataset
+        composite_dataset = get_composite_dataset(
+            cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, input_shape=tuple(cfg.data.input_shape)
+            )
+        composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    # endregion
 
-    # ------------------------------- Evaluate Model ----------------------------- #
+    # region Evaluate Model
     results = []
 
     logger.info("Starting evaluation...")
@@ -103,13 +103,13 @@ def test(cfg: DictConfig):
                 model, test_loader, device
             )
             results.append([name, 
+                            test_results["precision"], 
                             test_results["recall"], 
                             test_results["accuracy"], 
                             test_results["f1"], 
                             test_results["auroc"],
-                            test_results["precision"], 
                             ])
-            logger.info(
+            tqdm.write(
                 f"Dataset: {name} | Recall: {test_results['recall']:.4f} | F1: {test_results['f1']:.4f} | "
                 f"Accuracy: {test_results['accuracy']:.4f} | Precision: {test_results['precision']:.4f} | "
                 f"AUROC: {test_results['auroc']:.4f}"
@@ -117,12 +117,31 @@ def test(cfg: DictConfig):
 
     # Save results to CSV
     # headers = ["Dataset", "Recall", "F1", "Accuracy", "Precision", "Auroc"]
-    headers = ["Dataset", "Recall", "Accuracy", "F1", "Auroc", "Precision"]
+    headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "AUROC"]
     # Calculate mean of all metrics
     mean_metrics = ["Avg."]
     for i in range(1, len(headers)):
         mean_metrics.append(sum(result[i] for result in results) / len(results))
     results.append(mean_metrics)
+
+    if cfg.revise:
+        # additionally evaluate on composite dataset
+        logger.info("Evaluating on composite dataset...")
+        test_results = test_classifier(
+            model, composite_loader, device
+        )
+        results.append(["Composite", 
+                        test_results["precision"], 
+                        test_results["recall"], 
+                        test_results["accuracy"], 
+                        test_results["f1"], 
+                        test_results["auroc"],
+                        ])
+        tqdm.write(
+            f"Dataset: Composite | Recall: {test_results['recall']:.4f} | F1: {test_results['f1']:.4f} | "
+            f"Accuracy: {test_results['accuracy']:.4f} | Precision: {test_results['precision']:.4f} | "
+            f"AUROC: {test_results['auroc']:.4f}"
+        )
     
     csv_path = os.path.join(cfg.log_path, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
@@ -135,6 +154,7 @@ def test(cfg: DictConfig):
 
     # Print results in table format
     logger.info("\n" + tabulate(results, headers=headers, tablefmt="grid"))
+    # endregion
 
 @torch.no_grad()
 def test_classifier(model, test_dataloader, device):
@@ -172,5 +192,7 @@ def test_classifier(model, test_dataloader, device):
         "accuracy": acc,
         "auroc": auroc,
     }
+
+
 if __name__ == "__main__":
     test()

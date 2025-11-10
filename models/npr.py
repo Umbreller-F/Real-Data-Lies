@@ -286,5 +286,5 @@ if __name__ == "__main__":
     from torchinfo import summary
     summary(model)
     model = model.cuda()
-    tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
+    tensor = torch.tensor(np.random.rand(32, 8, 3, 224, 224), dtype=torch.float32).cuda()
     print(model(tensor).shape)

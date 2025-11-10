@@ -1,47 +1,42 @@
 from utils.experiment_utils import set_seed
-from data.utils import get_generation_models, get_revised_generation_models
-from omegaconf import DictConfig
-from models.discriminators import *
 from utils.train_utils import *
-from utils.data_utils import *
-from models.demamba import XCLIP_DeMamba
-from models.npr import resnet50_npr
-from models.tall import TALL_SWIN
-from models.stil import Det_STIL
-from omegaconf import OmegaConf
-import torch.optim as optim
+from data import get_image_dataset
+from data.utils import get_generation_models, get_revised_generation_models
+from omegaconf import DictConfig, OmegaConf
+from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
 from loguru import logger
 from tqdm import tqdm
-import torch.nn as nn
-import hydra
 from torchinfo import summary
-import torch
-import time  
-from torch.utils.tensorboard import SummaryWriter
-import os
 from tabulate import tabulate
+
+import pandas as pd
+import torch.optim as optim
+import torch.nn as nn
+import torch
+import hydra
+import time  
+import os
+
 
 @hydra.main(config_path="configs/classifier-224x224", config_name="npr.yaml", version_base=None)
 def main(cfg: DictConfig):
     log_dir = os.path.join(cfg.log_path, cfg.experiment_name)
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{cfg.model.name}_{time.strftime('%Y%m%d_%H%M%S')}.txt")
+    log_file = os.path.join(log_dir, f"{cfg.model.name}_{time.strftime('%Y%m%d_%H%M%S')}.log")
     logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
-    logger.info(OmegaConf.to_yaml(cfg))
+    logger.info(f'Configs:\n{OmegaConf.to_yaml(cfg)}')
     writer = SummaryWriter(log_dir=log_dir)
     set_seed(cfg.seed)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # ----------------------------------- Model ---------------------------------- #
-    if cfg.model.name == "DeMamba":
-        model = XCLIP_DeMamba()
-    elif cfg.model.name == "NPR":
-        model = resnet50_npr()
-    elif cfg.model.name == "TALL":
-        model = TALL_SWIN(pretrained=True)
-    elif cfg.model.name == "STIL":
-        model = Det_STIL()
+    # region Model
+    if cfg.model.name == "DINOv2":
+        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "DINOv3":
+        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
@@ -57,12 +52,16 @@ def main(cfg: DictConfig):
     elif cfg.task_type == "unbalance":
         generation_models = get_generation_models(cfg.data.dataset_name)
         pn_ratio = cfg.data.pn_ratio
+    # endregion
     
-    # ----------------------------------- Data ----------------------------------- #
-    train_dataset = get_classifier_dataset(cfg.data, generation_model=cfg.data.generation_model, real_model=cfg.data.train_real_model, mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
-    train_loader = get_data_loader_for_classifer(cfg.data, train_dataset)
+    # region Data
+    train_dataset = get_image_dataset(cfg.data, generation_model=cfg.data.generation_model, real_model=cfg.data.train_real_model, 
+                                      mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio, input_shape=tuple(cfg.data.input_shape))
+    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders = {}
 
+    # Enforces stricter and more rational data isolation, as mandated by our protocol. 
+    # Always set cfg.revise to True.
     if not cfg.revise:
         generation_models = get_generation_models(cfg.data.dataset_name)
     else:
@@ -71,16 +70,20 @@ def main(cfg: DictConfig):
     if not cfg.revise:
         for fake_model in generation_models["fake"]["val"]:
             for real_model in generation_models["real"]["test"]:
-                val_dataset = get_classifier_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, pn_ratio=1, load_len=cfg.data.val_load_len)
-                val_loader = get_data_loader_for_classifer(cfg.data, val_dataset)
+                val_dataset = get_image_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                                                pn_ratio=1, load_len=cfg.data.val_load_len, input_shape=tuple(cfg.data.input_shape))
+                val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
                 val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     else:
         real_model = cfg.data.val_real_model
         fake_model = cfg.data.generation_model
-        val_dataset = get_classifier_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, pn_ratio=1, load_len=cfg.data.val_load_len)
-        val_loader = get_data_loader_for_classifer(cfg.data, val_dataset)
+        val_dataset = get_image_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                                        pn_ratio=1, load_len=cfg.data.val_load_len, input_shape=tuple(cfg.data.input_shape))
+        val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
-    # ----------------------------------- Train ---------------------------------- #
+    # endregion
+
+    # region Train
     global_step = 0
     best_val_auroc = - float("inf")
     best_val_acc = - float("inf")
@@ -132,7 +135,6 @@ def main(cfg: DictConfig):
 
     csv_path = os.path.join(cfg.log_path, f"{cfg.experiment_name}/{cfg.data.dataset_name}/{cfg.model.name}_train_results.csv")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    import pandas as pd
     df = pd.DataFrame(val_results, columns=headers)
     df.to_csv(csv_path)
     # save model ckpts
@@ -140,6 +142,7 @@ def main(cfg: DictConfig):
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
     torch.save(model.state_dict(), model_save_path)
     logger.success(f"Model saved at {model_save_path}")
+    # endregion
     
 if __name__ == "__main__":
     main()

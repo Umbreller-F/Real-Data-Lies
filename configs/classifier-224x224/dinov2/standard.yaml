@@ -6,7 +6,7 @@ hydra:
     dir: "results/outputs/" 
 
 model:
-  name: "NPR"
+  name: "DINOv2"
 
 seed: 42
 trainer:
@@ -23,7 +23,7 @@ trainer:
   device_ids: [0,1,2,3]
 
 data:
-  batch_size: 24 # batch size is 24
+  batch_size: 64 # batch size is 24
   val_batch_size: 8
   feature_type: image
   dataset_name: "GenVideo"
@@ -33,8 +33,8 @@ data:
   generation_model: "Pika" 
   input_shape: [224,224]
   train_real_model: "Kinetics-400"
+  val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
-  val_real_model: "MSR-VTT"
   train_load_len: 10000
   val_load_len: 100
   diffuse_steps: 5

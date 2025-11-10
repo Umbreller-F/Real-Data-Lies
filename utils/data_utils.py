@@ -3,11 +3,11 @@ from torch.utils.data import ConcatDataset
 from torch.utils.data import DataLoader
 from data.video_dataset import VideoTensorDataset
 from loguru import logger
-from torch.utils.data import DataLoader
 
 def get_score_datasets(data_cfg, mode, 
                        load_len=1000, generation_model = None,
                        real_model = None, filter=True, pn_ratio=1, filter_frames=False, resolution_size=224):
+    logger.info(f"Preparing {mode} datasets for generation model: {generation_model} and real model: {real_model}")
     fake_len = int(load_len * pn_ratio)
     fake_dataset = ScoreFeaturesDataset(
                 score_config_path="./libs/eps_ad/imagnet.yml",
@@ -46,9 +46,34 @@ def get_score_datasets(data_cfg, mode,
                 filter_nsg=filter,
                 filter_frames=filter_frames,
                 resolution_size=resolution_size,
-                start_idx=200,
+                start_idx=200, # to avoid overlap with reference data
                 )
     return {"fake": fake_dataset, "real": real_dataset}
+
+def process_real_datasets(data_cfg, mode, 
+                       load_len=1000, generation_model = None,
+                       real_model = None, filter=True, pn_ratio=1, filter_frames=False, resolution_size=224):
+    real_dataset = ScoreFeaturesDataset(
+                score_config_path="./libs/eps_ad/imagnet.yml",
+                score_args_path="./libs/eps_ad/args.yml",
+                data_path=data_cfg.data_path, 
+                dataset_name=data_cfg.dataset_name,
+                generation_model=real_model,
+                input_shape=(224, 224),
+                process_batch_size=3,
+                diffuse_steps=data_cfg.diffuse_steps,
+                device="cuda",
+                verbose=False,
+                feature_type=data_cfg.feature_type,
+                num_frames=8,
+                mode=mode, 
+                load_len=load_len,
+                filter_nsg=filter,
+                filter_frames=filter_frames,
+                resolution_size=resolution_size,
+                start_idx=200,
+                )
+    return
 
 def get_data_loaders_for_mmd(data_cfg, datasets, batch_size):
     train_dataloaders = {}
@@ -83,6 +108,7 @@ def get_ref_dataloaders(data_cfg, ref_model_names, mode="test", filter_frames=Fa
     return ref_dataloaders
 
 def get_ref_dataloader(data_cfg, ref_model_name, mode="test", filter_frames=False, resolution_size=224):
+    logger.info(f"Preparing reference dataloader for model: {ref_model_name}, mode: {mode}")
     ref_dataset = ScoreFeaturesDataset(
         score_config_path="./libs/eps_ad/imagnet.yml",
         score_args_path="./libs/eps_ad/args.yml",
@@ -133,3 +159,41 @@ def get_classifier_dataset(data_cfg, mode,
 def get_data_loader_for_classifer(data_cfg, dataset):
     return DataLoader(dataset, batch_size=data_cfg.batch_size,
                         shuffle=True, num_workers=data_cfg.num_workers)
+
+
+if __name__ == "__main__":
+    from omegaconf import OmegaConf
+    pn_ratio = 1
+    cfg = OmegaConf.create({
+        'data': {
+            'batch_size': 24,
+            'val_batch_size': 8,
+            'feature_type': 'image',
+            'dataset_name': "GenVideo",
+            'num_workers': 16,
+            'data_path': "/home/ziyuanfang/Data/GenVideo",
+            'num_frames': 8,
+            'generation_model': "Pika",
+            'input_shape': [224,224],
+            'train_real_model': "Kinetics-400",
+            'val_real_model': "Kinetics-400",
+            'test_real_model': "MSR-VTT",
+            'train_load_len': 10000,
+            'val_load_len': 100,
+            'diffuse_steps': 5,
+        }
+    })
+    real_fake_dataset = get_classifier_dataset(cfg.data, generation_model=cfg.data.generation_model, 
+                                               real_model=cfg.data.train_real_model, mode="train", 
+                                               load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
+    print(f"Total training samples: {len(real_fake_dataset)}")
+    print(real_fake_dataset[0][0].shape)
+    print(real_fake_dataset[0][1])
+
+    print(type(real_fake_dataset[0][0]))
+    demo_loader = get_data_loader_for_classifer(cfg.data, real_fake_dataset)
+    for batch_data, batch_labels in demo_loader:
+        print(batch_data.shape)
+        print(batch_labels.shape)
+        breakpoint()
+        break

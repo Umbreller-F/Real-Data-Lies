@@ -42,3 +42,5 @@ ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
 log_path: "./results/test/baselines"
 save_csv_file: standard-Pika-npr.csv
+
+revise: False

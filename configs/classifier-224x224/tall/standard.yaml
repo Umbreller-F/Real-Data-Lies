@@ -44,3 +44,5 @@ debug: False
 experiment_name: "standard-Pika-tall"
 save_ckpt_path: "./results/ckpts/baselines/${experiment_name}/"
 log_path: "./results/logs/baselines/"
+
+revise: False
