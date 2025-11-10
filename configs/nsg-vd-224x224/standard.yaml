@@ -13,7 +13,7 @@ model:
   sigma0: 0.1
   feature_dim: 300
   is_smooth: True
-  is_yy_zero: True # True for mmd-mp, False for mmd-d
+  is_yy_zero: False # True for mmd-mp, False for mmd-d
   
 seed: 42
 trainer:
@@ -56,3 +56,5 @@ debug: False
 experiment_name: "standard-Pika-mmd-mp"
 save_ckpt_path: "./results/ckpts/nsg-vd/${experiment_name}/"
 log_path: "./results/logs/nsg-vd"
+
+revise: False

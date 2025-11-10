@@ -47,3 +47,5 @@ ckpt_path: "/U_20240905_ZSH_SMIL/lzh/NSG-VD/results/logs/filter_nsg_Pika/lr_0.00
 experiment_name: "standard-Pika-d"
 save_csv_file: "test_results.csv"
 log_path: "./results/test/${exp_name}"
+
+revise: False
