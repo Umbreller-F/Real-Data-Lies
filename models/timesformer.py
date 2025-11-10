@@ -8,10 +8,9 @@ import torch
 
 
 class TimesformerBinaryClassifier(nn.Module):
-    def __init__(self, 
-                #  model_name: str = "facebook/timesformer-base-finetuned-ssv2",
-                model_name: Literal['timesformer-k400', 'timesformer-ssv2'],
-                 num_classes: int = 2,
+    def __init__(self,
+                 model_name: Literal['timesformer-k400', 'timesformer-ssv2'],
+                 output_dim: int = 1,
                  freeze_backbone: bool = False,
                  dropout_rate: float = 0.1):
         """
@@ -19,7 +18,7 @@ class TimesformerBinaryClassifier(nn.Module):
         
         Args:
             model_name: Pretrained model name
-            num_classes: Number of classes (set to 2 for binary classification)
+            output_dim: Dimension of output (1 for binary classification)
             freeze_backbone: Whether to freeze backbone and only train classifier head
             dropout_rate: Dropout rate for classifier
         """
@@ -46,14 +45,12 @@ class TimesformerBinaryClassifier(nn.Module):
             nn.Dropout(dropout_rate),
             nn.Linear(512, 128),
             nn.ReLU(),
-            nn.Linear(128, num_classes)
+            nn.Linear(128, output_dim)
         )
         
         # Freeze backbone if specified
         if freeze_backbone:
             self.freeze_backbone()
-        
-        self.num_classes = num_classes
         
     def freeze_backbone(self):
         """Freeze Timesformer backbone, only train classifier head"""
@@ -62,7 +59,6 @@ class TimesformerBinaryClassifier(nn.Module):
         logger.info("Backbone frozen, only classifier head will be trained")
     
     def forward(self, x):
-        # inputs = self.processor(images=x, return_tensors="pt")
         return self.model(pixel_values=x).logits
 
 

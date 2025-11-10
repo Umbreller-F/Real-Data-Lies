@@ -2,7 +2,7 @@ import os
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, ConcatDataset
-from typing import List, Optional, Callable
+from typing import Optional, Callable
 from data.utils import *
 from pprint import pprint as print
 from loguru import logger
@@ -138,7 +138,9 @@ class VideoDataset(Dataset):
             img = Image.open(frame_path).convert('RGB')
             video_data.append(np.array(img))
         
-        return self.processor(images=video_data, return_tensors="pt").pixel_values, np.array([0 if self.label=="real" else 1], dtype=np.float32)
+        video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
+        label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
+        return video, label
 
 
 def get_video_dataset(data_cfg, mode, processor, load_len=1000, generation_model=None, real_model=None, pn_ratio=1):
@@ -167,28 +169,28 @@ def get_video_dataset(data_cfg, mode, processor, load_len=1000, generation_model
     return ConcatDataset([fake_dataset, real_dataset])
 
 
-def get_composite_video_dataset(data_cfg, mode, generation_models:list=[], real_model=None, input_shape=(224,224)):
+def get_composite_video_dataset(data_cfg, mode, processor, generation_models:list=[], real_model=None):
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
     if feature_type == "video":
         real_dataset = VideoDataset(
+            processor=processor,
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=real_model,
             mode=mode, 
             num_frames=8,
-            input_shape=input_shape,
             )
         fake_datasets = []
         for gen_model in generation_models:
             fake_datasets.append(
                 VideoDataset(
+                    processor=processor,
                     data_path=data_cfg.data_path, 
                     dataset_name=data_cfg.dataset_name,
                     generation_model=gen_model,
                     mode=mode, 
                     num_frames=8,
-                    input_shape=input_shape,
                     )
             )
         fake_dataset = ConcatDataset(fake_datasets)

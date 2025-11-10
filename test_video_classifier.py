@@ -1,6 +1,6 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models, get_revised_generation_models
-from data import get_video_dataset
+from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
 from utils.train_utils import *
@@ -89,7 +89,7 @@ def test(cfg: DictConfig):
             test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{fake_model}"] = test_loader
         # additionally test on composite dataset
-        composite_dataset = get_composite_dataset(
+        composite_dataset = get_composite_video_dataset(
             cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, input_shape=tuple(cfg.data.input_shape)
             )
         composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)

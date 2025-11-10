@@ -1,6 +1,6 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models, get_revised_generation_models
-from data import get_image_dataset, get_composite_dataset
+from data.image_dataset import get_image_dataset, get_composite_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from utils.train_utils import *

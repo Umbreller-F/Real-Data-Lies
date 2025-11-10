@@ -23,7 +23,7 @@ trainer:
   device_ids: [0,1,2,3]
 
 data:
-  batch_size: 64 # batch size is 24
+  batch_size: 16 # batch size is 24
   val_batch_size: 8
   feature_type: video
   dataset_name: "GenVideo"

@@ -1,6 +1,6 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models, get_revised_generation_models
-from data import get_video_dataset
+from data.video_dataset import get_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
