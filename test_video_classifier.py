@@ -63,12 +63,12 @@ def test(cfg: DictConfig):
                     load_len = 56
                     test_dataset = get_video_dataset(
                         cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                        processor=model.processor, load_len=load_len, input_shape=tuple(cfg.data.input_shape)
+                        processor=model.processor, load_len=load_len
                     )
                 else:
                     test_dataset = get_video_dataset(
                         cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                        processor=model.processor, load_len=cfg.data.test_load_len, input_shape=tuple(cfg.data.input_shape)
+                        processor=model.processor, load_len=cfg.data.test_load_len
                     )
                 test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
                 test_dataloaders[f"{fake_model}"] = test_loader
@@ -79,18 +79,18 @@ def test(cfg: DictConfig):
                 load_len = 56
                 test_dataset = get_video_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                    processor=model.processor, load_len=load_len, input_shape=tuple(cfg.data.input_shape)
+                    processor=model.processor, load_len=load_len
                 )
             else:
                 test_dataset = get_video_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                    processor=model.processor, load_len=cfg.data.test_load_len, input_shape=tuple(cfg.data.input_shape)
+                    processor=model.processor, load_len=cfg.data.test_load_len
                 )
             test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{fake_model}"] = test_loader
         # additionally test on composite dataset
         composite_dataset = get_composite_video_dataset(
-            cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, input_shape=tuple(cfg.data.input_shape)
+            cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, processor=model.processor
             )
         composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # endregion

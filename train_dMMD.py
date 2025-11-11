@@ -22,7 +22,7 @@ from torch.utils.tensorboard import SummaryWriter
 def main(cfg: DictConfig):
     log_dir = os.path.join(cfg.log_path, cfg.experiment_name)
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"output.txt")
+    log_file = os.path.join(log_dir, f"output.log")
     logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
     logger.info(OmegaConf.to_yaml(cfg))
     writer = SummaryWriter(log_dir=log_dir)
