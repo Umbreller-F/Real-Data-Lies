@@ -140,23 +140,34 @@ class VideoDataset(Dataset):
         
         video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
         label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
+        # logger.warning(f'{frame_path}, {self.label}, {label}')
         return video, label
 
 
-def get_video_dataset(data_cfg, mode, processor, load_len=1000, generation_model=None, real_model=None, pn_ratio=1):
+def get_video_dataset(data_cfg, mode, processor, load_len=None, generation_model=None, real_model=None, pn_ratio=1):
+    """
+    Load and concatenate video datasets for fake and real videos.
+    
+    Args:
+        data_cfg: Configuration object containing dataset parameters
+        mode (str): Dataset mode - 'train', 'val', or 'test'
+        processor: Video processor for data preprocessing
+        load_len (int, optional): Total number of samples to load. If None, loads all available data
+        generation_model (str, optional): Model name for generated/fake videos
+        real_model (str, optional): Model name for real videos  
+        pn_ratio (float, optional): Positive-negative ratio for balancing real vs fake samples. 
+                                   Defaults to 1 (equal ratio)
+    
+    Returns:
+        ConcatDataset: Concatenated dataset containing both fake and real video samples
+        
+    Example:
+        >>> dataset = get_video_dataset(cfg, 'train', processor, load_len=1000, pn_ratio=2)
+        >>> # This will load 1000 total samples with 2:1 fake-to-real ratio
+    """
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
     if feature_type == "video":
-        real_dataset = VideoDataset(
-            processor=processor,
-            data_path=data_cfg.data_path, 
-            dataset_name=data_cfg.dataset_name,
-            generation_model=real_model,
-            mode=mode, 
-            num_frames=8,
-            load_len=load_len,
-            )
-        fake_len = int(load_len * pn_ratio)
         fake_dataset = VideoDataset(
             processor=processor,
             data_path=data_cfg.data_path, 
@@ -164,8 +175,20 @@ def get_video_dataset(data_cfg, mode, processor, load_len=1000, generation_model
             generation_model=generation_model,
             mode=mode, 
             num_frames=8,
-            load_len=fake_len,
+            load_len=load_len,
             )
+        real_len = int(load_len / pn_ratio) if load_len else None
+        real_dataset = VideoDataset(
+            processor=processor,
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=real_model,
+            mode=mode, 
+            num_frames=8,
+            load_len=real_len,
+            )
+    else:
+        raise NotImplementedError(f"Feature type {feature_type} is not supported.")
     return ConcatDataset([fake_dataset, real_dataset])
 
 

@@ -27,7 +27,7 @@ class VideoFramesDataset(Dataset):
                  ids_file: str=None):
         super()
         assert mode in ["train", "test", "val"], f"Mode {mode} is not supported"
-        assert dataset_name in ["GenVideo"], f"Dataset {dataset_name} is not supported"
+        assert dataset_name in ["GenVideo", "myvideos"], f"Dataset {dataset_name} is not supported"
         assert os.path.exists(data_path), f"Data path {data_path} does not exist"
         assert len_load is None or len_load > 0, f"len_load should be None or positive integer"
         
@@ -102,7 +102,7 @@ class VideoFramesDataset(Dataset):
                 video_ids = [line.strip() for line in f if line.strip()]
         video_ids = [vid for vid in video_ids if vid.endswith('.mp4')]
         video_ids = video_ids[self.start_idx:self.start_idx + self.len_load]
-        video_ids = [video_id.split('.')[0] for video_id in video_ids]
+        video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
         assert len(video_ids) <= self.len_load
         logger.info(f"len of video_ids is {len(video_ids)}")
         # {Dataset e.g., GenVideo}/video_frames/{label e.g., fake or real}/{generation_model e.g., Sora}/{self.mode}/{video_id e.g., Sora_1}/frames{1-8}.jpg
@@ -202,10 +202,20 @@ if __name__ == "__main__":
                     len_load=4,
                     )'''
             # print(f"Video 0: {dataset[0]}")
-    dataset = VideoFramesDataset(
-                    data_path=f"../Data/GenVideo", 
-                    generation_model="MSR-VTT", 
-                    dataset_name="GenVideo", 
-                    mode="test", 
-                    len_load=4550,
-                    )
+    # dataset = VideoFramesDataset(
+    #                 data_path=f"../Data/GenVideo", 
+    #                 generation_model="MSR-VTT", 
+    #                 dataset_name="GenVideo", 
+    #                 mode="test", 
+    #                 len_load=4550,
+    #                 )
+    for gen_model in ['AnimateDiff', 'CogVideoX', 'FramePack', 'HunyuanVideo', 'MAGI-1', 'sora2', 'Wan2.1']:
+        dataset = VideoFramesDataset(
+                        data_path=f"/home/ziyuanfang/Data/myvideos", 
+                        generation_model=gen_model, 
+                        dataset_name="myvideos", 
+                        mode="test", 
+                        len_load=100,
+                        )
+        print(f"Dataset for {gen_model}, len: {len(dataset)}")
+        print(f"Video 0: {dataset[0]}")

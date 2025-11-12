@@ -31,8 +31,8 @@ class TimesformerBinaryClassifier(nn.Module):
             self.model_name = "facebook/timesformer-base-finetuned-ssv2"
         else:
             raise ValueError(f"Unknown model name: {model_name}")
-        self.model = TimesformerForVideoClassification.from_pretrained(self.model_name)
-        self.processor = AutoImageProcessor.from_pretrained(self.model_name, use_fast=False)
+        self.model = TimesformerForVideoClassification.from_pretrained(self.model_name, local_files_only=True)
+        self.processor = AutoImageProcessor.from_pretrained(self.model_name, use_fast=False, local_files_only=True)
 
         # Get original feature dimension
         original_hidden_size = self.model.config.hidden_size
@@ -66,8 +66,8 @@ if __name__ == "__main__":
     print("This module is not meant to be run directly. Import it in your code to use the models.")
     video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
 
-    processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False)
-    model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2")
+    processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
+    model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2", local_files_only=True)
 
     inputs = processor(images=video, return_tensors="pt")
 

@@ -71,6 +71,25 @@ def get_generation_models(dataset_name):
                 ]
             }
         }
+    elif dataset_name == 'myvideos':
+        return {
+            "fake": {
+                "train": [],
+                "test": [
+                    'AnimateDiff', 
+                    'CogVideoX', 
+                    'FramePack', 
+                    'HunyuanVideo', 
+                    'MAGI-1', 
+                    'sora2', 
+                    'Wan2.1'
+                ]
+            },
+            "real": {
+                "train": [],
+                "test": []
+            }
+        }
     else:
         raise ValueError(f"Dataset {dataset_name} is not supported")
 
