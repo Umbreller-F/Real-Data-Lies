@@ -184,3 +184,4 @@ nohup_logs/
 *.csv
 *.sh
 train.pid
+command

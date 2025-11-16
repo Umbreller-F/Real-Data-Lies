@@ -14,7 +14,7 @@ trainer:
   max_epochs: 30
   optimizer:
     name: "adamW"
-    lr: 1e-5 # NPR is 1e-5
+    lr: 1e-5
     betas: [0.9,0.999]
     weight_decay: 0.1
   loss_fn:
@@ -24,8 +24,6 @@ trainer:
   device_ids: [0,1,2,3]
 
 data:
-  batch_size: 16 # batch size is 24
-  val_batch_size: 8
   feature_type: video
   dataset_name: "GenVideo"
   num_workers: 16
@@ -37,13 +35,13 @@ data:
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
   train_load_len: 10000
-  val_load_len: 100
-  diffuse_steps: 5
-  
-task_type: standard # standard / unbalance
-debug: False
-experiment_name: "standard-Pika-npr"
-save_ckpt_path: "./results/ckpts/baselines/${experiment_name}/"
-log_path: "./results/logs/baselines/"
+  test_load_len: 500
+  batch_size: 16
+  val_batch_size: 32
 
-revise: False
+ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
+experiment_name: "standard-Pika-npr"
+log_path: "./results/test/baselines"
+save_csv_file: standard-Pika-npr.csv
+
+revise: True

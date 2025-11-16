@@ -7,7 +7,7 @@ hydra:
 
 model:
   name: "timesformer-k400"
-  pretrained: True
+  pretrained: False
 
 seed: 42
 trainer:

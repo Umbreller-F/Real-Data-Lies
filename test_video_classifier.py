@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.utils import get_generation_models, get_revised_generation_models
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
 from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
@@ -27,7 +27,7 @@ def test(cfg: DictConfig):
     # region Load Model
     logger.info(f"Loading model: {cfg.model.name}")
     if 'timesformer' in cfg.model.name:
-        model = TimesformerBinaryClassifier(model_name=cfg.model.name, freeze_backbone=False)
+        model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
@@ -48,102 +48,89 @@ def test(cfg: DictConfig):
     # endregion
 
     # region Load Test Data
-    logger.info("Loading test data...")
-    if not cfg.revise:
-        generation_models = get_generation_models(cfg.data.dataset_name)
-    else:
-        generation_models = get_revised_generation_models(cfg.data.dataset_name)
+    logger.info(f"Loading test data of {cfg.data.dataset_name}...")
+    if cfg.data.dataset_name == "GenVideo":
+        if cfg.data.generation_model == "Pika":
+            generation_models = GENVIDEO_PIKA
+        elif cfg.data.generation_model == "SEINE":
+            generation_models = GENVIDEO_SEINE
+    elif cfg.data.dataset_name == "myvideos":
+        generation_models = MYVIDEOS
+    
+    load_len = cfg.data.test_load_len
+    
     test_dataloaders = {}
-    # Enforces stricter and more rational data isolation, as mandated by our protocol. 
-    # Always set cfg.revise to True.
-    if not cfg.revise:
-        for fake_model in generation_models["fake"]["test"]:
-            for real_model in generation_models["real"]["test"]:
-                if fake_model == "Sora":
-                    load_len = 56
-                    test_dataset = get_video_dataset(
-                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                        processor=model.processor, load_len=load_len
-                    )
-                else:
-                    test_dataset = get_video_dataset(
-                        cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                        processor=model.processor, load_len=cfg.data.test_load_len
-                    )
-                test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-                test_dataloaders[f"{fake_model}"] = test_loader
-    else:
-        real_model = cfg.data.test_real_model
-        for fake_model in generation_models["fake"]["test"]:
-            if fake_model == "Sora":
-                load_len = 56
-                test_dataset = get_video_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                    processor=model.processor, load_len=load_len
-                )
-            else:
-                test_dataset = get_video_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                    processor=model.processor, load_len=cfg.data.test_load_len
-                )
-            test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-            test_dataloaders[f"{fake_model}"] = test_loader
-        # additionally test on composite dataset
-        composite_dataset = get_composite_video_dataset(
-            cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, processor=model.processor
+    real_model = generation_models["real"]["test"][0]
+    for fake_model in generation_models["fake"]["test"]:
+        if fake_model == "Sora":
+            test_dataset = get_video_dataset(
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
+                processor=model.processor, load_len=56
             )
-        composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+        else:
+            test_dataset = get_video_dataset(
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
+                processor=model.processor, load_len=load_len
+            )
+        test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+        test_dataloaders[f"{fake_model}"] = test_loader
+    # additionally test on composite dataset
+    composite_dataset = get_composite_video_dataset(
+        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model, processor=model.processor
+        )
+    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # endregion
 
     # region Evaluate Model
     results = []
 
     logger.info("Starting evaluation...")
-    with torch.no_grad():
-        for name, test_loader in tqdm(test_dataloaders.items(), desc="Testing", unit="dataset"):
-            test_results = test_classifier(
-                model, test_loader, device
-            )
-            results.append([name, 
-                            test_results["precision"], 
-                            test_results["recall"], 
-                            test_results["accuracy"], 
-                            test_results["f1"], 
-                            test_results["auroc"],
-                            ])
-            tqdm.write(
-                f"Dataset: {name} | Recall: {test_results['recall']:.4f} | F1: {test_results['f1']:.4f} | "
-                f"Accuracy: {test_results['accuracy']:.4f} | Precision: {test_results['precision']:.4f} | "
-                f"AUROC: {test_results['auroc']:.4f}"
-            )
+    for name, test_loader in tqdm(test_dataloaders.items(), desc="Testing", unit="dataset"):
+        test_results = test_on_dataloader(
+            model, test_loader, device
+        )
+        results.append([name, 
+                        test_results["precision"], 
+                        test_results["recall"], 
+                        test_results["accuracy"], 
+                        test_results["f1"],
+                        test_results["positive_accuracy"],
+                        test_results["negative_accuracy"],
+                        test_results["auroc"],
+                        ])
+        tqdm.write(
+            f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
+            f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
+            f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
+        )
 
-    # Save results to CSV
-    # headers = ["Dataset", "Recall", "F1", "Accuracy", "Precision", "Auroc"]
-    headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "AUROC"]
+    headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "FakeACC", "RealACC", "AUROC"]
     # Calculate mean of all metrics
     mean_metrics = ["Avg."]
     for i in range(1, len(headers)):
         mean_metrics.append(sum(result[i] for result in results) / len(results))
     results.append(mean_metrics)
 
-    if cfg.revise:
-        # additionally evaluate on composite dataset
-        logger.info("Evaluating on composite dataset...")
-        test_results = test_classifier(
-            model, composite_loader, device
-        )
-        results.append(["Composite", 
-                        test_results["precision"], 
-                        test_results["recall"], 
-                        test_results["accuracy"], 
-                        test_results["f1"], 
-                        test_results["auroc"],
-                        ])
-        tqdm.write(
-            f"Dataset: Composite | Recall: {test_results['recall']:.4f} | F1: {test_results['f1']:.4f} | "
-            f"Accuracy: {test_results['accuracy']:.4f} | Precision: {test_results['precision']:.4f} | "
-            f"AUROC: {test_results['auroc']:.4f}"
-        )
+    # additionally evaluate on composite dataset
+    logger.info("Evaluating on composite dataset...")
+    test_results = test_on_dataloader(
+        model, composite_loader, device
+    )
+    results.append([
+        "Composite", 
+        test_results["precision"], 
+        test_results["recall"], 
+        test_results["accuracy"], 
+        test_results["f1"],
+        test_results["positive_accuracy"],
+        test_results["negative_accuracy"],
+        test_results["auroc"],
+    ])
+    tqdm.write(
+        f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
+        f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
+        f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
+    )
     
     csv_path = os.path.join(cfg.log_path, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
@@ -159,26 +146,45 @@ def test(cfg: DictConfig):
     # endregion
 
 @torch.no_grad()
-def test_classifier(model, test_dataloader, device):
+def test_on_dataloader(model, test_dataloader, device=torch.device('cuda')):
     model.eval()
     all_labels = []
     all_predicted = []
     all_raw_preds = []
 
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
-            inputs, labels = batch
-            inputs, labels = inputs.float().to(device), labels.to(device)
+    for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
+        inputs, labels = batch
+        inputs, labels = inputs.float().to(device), labels.to(device)
 
-            logits = model(inputs)
+        logits = model(inputs)
 
-            output_pred = logits[:,0].sigmoid().cpu()
-            predicted = output_pred > 0.5
-            
-            # Collect labels and predictions for metric calculation
-            all_labels.extend(labels.cpu().numpy())
-            all_predicted.extend(predicted.cpu().numpy())
-            all_raw_preds.extend(output_pred.cpu().numpy())
+        output_pred = logits[:,0].sigmoid().cpu()
+        predicted = output_pred > 0.5
+        
+        # Collect labels and predictions for metric calculation
+        all_labels.extend(labels.cpu().numpy().flatten())
+        all_predicted.extend(predicted.cpu().numpy().flatten())
+        all_raw_preds.extend(output_pred.cpu().numpy().flatten())
+    
+    all_labels = np.array(all_labels)
+    all_predicted = np.array(all_predicted)
+    all_raw_preds = np.array(all_raw_preds)
+
+    # Calculate class-wise accuracy
+    positive_mask = all_labels == 1
+    negative_mask = all_labels == 0
+    
+    if positive_mask.any():  # Check if there are positive samples
+        positive_acc = accuracy_score(all_labels[positive_mask], all_predicted[positive_mask])
+    else:
+        positive_acc = 0.0
+        logger.warning("No positive samples found in test set")
+    
+    if negative_mask.any():  # Check if there are negative samples
+        negative_acc = accuracy_score(all_labels[negative_mask], all_predicted[negative_mask])
+    else:
+        negative_acc = 0.0
+        logger.warning("No negative samples found in test set")
 
     # Calculate Precision, Recall, and F1 Score using sklearn
     precision = precision_score(all_labels, all_predicted)
@@ -193,6 +199,8 @@ def test_classifier(model, test_dataloader, device):
         "f1": f1,
         "accuracy": acc,
         "auroc": auroc,
+        "positive_accuracy": positive_acc,  # Accuracy on positive class (fake video)
+        "negative_accuracy": negative_acc,  # Accuracy on negative class (real video)
     }
 
 

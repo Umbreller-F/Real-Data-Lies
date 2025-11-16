@@ -53,13 +53,16 @@ MYVIDEOS = {
     },
     "fake": {
         "test":  [
-            'AnimateDiff', 
-            'CogVideoX', 
-            'FramePack', 
-            'HunyuanVideo', 
-            'MAGI-1', 
+            # 'AnimateDiff', 
+            # 'CogVideoX', 
+            # 'FramePack', 
+            # 'HunyuanVideo', 
+            # 'MAGI-1', 
             'sora2', 
-            'Wan2.1'
+            'Kling',
+            'Ray3',
+            'Hailuo02',
+            # 'Wan2.1'
         ]
     },
 }

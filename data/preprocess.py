@@ -80,4 +80,4 @@ def setup_dataset(data_path='../Data/myvideos', generation_model='MSR-VTT', labe
 
 if __name__ == "__main__":
     # setup_dataset(len_load=100)
-    setup_dataset(generation_model='sora2', label='fake', mode='test')
+    setup_dataset(generation_model='Hailuo02', label='fake', mode='test')

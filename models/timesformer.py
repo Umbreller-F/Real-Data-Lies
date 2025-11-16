@@ -1,4 +1,4 @@
-from transformers import AutoImageProcessor, TimesformerForVideoClassification
+from transformers import AutoImageProcessor, TimesformerForVideoClassification, TimesformerConfig
 from torchinfo import summary
 from typing import Literal
 from loguru import logger
@@ -9,7 +9,8 @@ import torch
 
 class TimesformerBinaryClassifier(nn.Module):
     def __init__(self,
-                 model_name: Literal['timesformer-k400', 'timesformer-ssv2'],
+                 model_name: Literal['timesformer-k400', 'timesformer-ssv2'] = 'timesformer-k400',
+                 pretrained: bool = True,
                  output_dim: int = 1,
                  freeze_backbone: bool = False,
                  dropout_rate: float = 0.1):
@@ -18,20 +19,29 @@ class TimesformerBinaryClassifier(nn.Module):
         
         Args:
             model_name: Pretrained model name
+            pretrained: Whether to use pretrained weights
             output_dim: Dimension of output (1 for binary classification)
             freeze_backbone: Whether to freeze backbone and only train classifier head
             dropout_rate: Dropout rate for classifier
         """
         super().__init__()
         
-        # Load pretrained model and processor
+        # Load model and processor
         if model_name == 'timesformer-k400':
             self.model_name = "facebook/timesformer-base-finetuned-k400"
         elif model_name == 'timesformer-ssv2':
             self.model_name = "facebook/timesformer-base-finetuned-ssv2"
         else:
             raise ValueError(f"Unknown model name: {model_name}")
-        self.model = TimesformerForVideoClassification.from_pretrained(self.model_name, local_files_only=True)
+        
+        if pretrained:
+            logger.info(f"Loading pretrained Timesformer model: {self.model_name}.")
+            self.model = TimesformerForVideoClassification.from_pretrained(self.model_name, local_files_only=True)
+        else:
+            logger.info(f"Initializing Timesformer model from scratch.")
+            config = TimesformerConfig.from_pretrained(self.model_name, local_files_only=True)
+            self.model = TimesformerForVideoClassification(config)
+        
         self.processor = AutoImageProcessor.from_pretrained(self.model_name, use_fast=False, local_files_only=True)
 
         # Get original feature dimension
@@ -64,24 +74,42 @@ class TimesformerBinaryClassifier(nn.Module):
 
 if __name__ == "__main__":
     print("This module is not meant to be run directly. Import it in your code to use the models.")
+    # video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
+
+    # processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
+    # model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2", local_files_only=True)
+
+    # inputs = processor(images=video, return_tensors="pt")
+
+    # with torch.no_grad():
+    #     outputs = model(**inputs)
+    #     logits = outputs.logits
+
+    # predicted_class_idx = logits.argmax(-1).item()
+    # print("Predicted class:", model.config.id2label[predicted_class_idx])
+    # summary(model)
+
+    # tensor = torch.tensor(np.random.rand(32, 8, 3, 224, 224), dtype=torch.float32).cuda()
+    # model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
+    # model = model.cuda()
+    # with torch.no_grad():
+    #     print(model(tensor).shape)
+    # print(model.processor)
+
+    model_name = 'facebook/timesformer-base-finetuned-k400'
+    config = TimesformerConfig.from_pretrained(model_name, local_files_only=True)
+    model_from_scratch = TimesformerForVideoClassification(config)
+
+    processor = AutoImageProcessor.from_pretrained(
+        model_name, use_fast=False, local_files_only=True
+    )
+    logger.info("Initializing Timesformer from scratch (random weights)")
+    summary(model_from_scratch)
     video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
-
-    processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
-    model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2", local_files_only=True)
-
     inputs = processor(images=video, return_tensors="pt")
-
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = model_from_scratch(**inputs)
         logits = outputs.logits
 
     predicted_class_idx = logits.argmax(-1).item()
-    print("Predicted class:", model.config.id2label[predicted_class_idx])
-    summary(model)
-
-    tensor = torch.tensor(np.random.rand(32, 8, 3, 224, 224), dtype=torch.float32).cuda()
-    model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
-    model = model.cuda()
-    with torch.no_grad():
-        print(model(tensor).shape)
-    print(model.processor)
+    print("Predicted class:", model_from_scratch.config.id2label[predicted_class_idx])

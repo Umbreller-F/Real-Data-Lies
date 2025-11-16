@@ -1,5 +1,6 @@
 from utils.experiment_utils import set_seed
-from data.utils import get_generation_models, get_revised_generation_models
+# from data.utils import get_generation_models, get_revised_generation_models
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
 from data.video_dataset import get_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
@@ -33,7 +34,7 @@ def main(cfg: DictConfig):
 
     # region Model
     if 'timesformer' in cfg.model.name:
-        model = TimesformerBinaryClassifier(model_name=cfg.model.name, freeze_backbone=False)
+        model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
@@ -42,40 +43,32 @@ def main(cfg: DictConfig):
         model = nn.DataParallel(model, device_ids=cfg.trainer.device_ids[:cfg.trainer.num_gpus])
 
     summary(model)
-    
-    if cfg.task_type == "standard":
-        generation_models = get_generation_models(cfg.data.dataset_name)
-        pn_ratio = 1
-    elif cfg.task_type == "unbalance":
-        generation_models = get_generation_models(cfg.data.dataset_name)
-        pn_ratio = cfg.data.pn_ratio
     # endregion
-    
+
     # region Data
-    train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=cfg.data.generation_model, real_model=cfg.data.train_real_model, 
+    logger.info(f"Loading training and validation data of {cfg.data.dataset_name}-{cfg.data.generation_model}...")
+    if cfg.data.dataset_name == "GenVideo":
+        if cfg.data.generation_model == "Pika":
+            generation_models = GENVIDEO_PIKA
+        elif cfg.data.generation_model == "SEINE":
+            generation_models = GENVIDEO_SEINE
+    else:
+        raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
+    pn_ratio = 1
+    # train data
+    real_model = generation_models["real"]["train"][0]
+    fake_model = generation_models["fake"]["train"][0]
+    train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
                                       mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    # val data
     val_dataloaders = {}
-
-    if not cfg.revise:
-        generation_models = get_generation_models(cfg.data.dataset_name)
-    else:
-        generation_models = get_revised_generation_models(cfg.data.dataset_name)
-    
-    if not cfg.revise:
-        for fake_model in generation_models["fake"]["val"]:
-            for real_model in generation_models["real"]["test"]:
-                val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
-                                                processor=model.processor, pn_ratio=1, load_len=cfg.data.val_load_len)
-                val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-                val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
-    else:
-        real_model = cfg.data.val_real_model
-        fake_model = cfg.data.generation_model
-        val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
-                                        processor=model.processor, pn_ratio=1, load_len=cfg.data.val_load_len)
-        val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-        val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
+    real_model = generation_models["real"]["val"][0]
+    fake_model = generation_models["fake"]["val"][0]
+    val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                                    processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len)
+    val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion
 
     # region Train
@@ -108,14 +101,14 @@ def main(cfg: DictConfig):
                 if val_acc > best_val_acc:
                     logger.info(f"Current acc ({val_acc:.4f}) > Best acc ({best_val_acc:.4f})")
                     best_val_acc = val_acc
-                    best_model_save_path = os.path.join(cfg.save_ckpt_path, f"best_acc_ckpt.pth")
+                    best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_acc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
                     torch.save(model.state_dict(), best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
                 if val_auroc > best_val_auroc:
                     logger.info(f"Current auroc ({val_auroc:.4f}) > Best auroc ({best_val_auroc:.4f})")
                     best_val_auroc = val_auroc
-                    best_model_save_path = os.path.join(cfg.save_ckpt_path, f"best_auroc_ckpt.pth")
+                    best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_auroc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
                     torch.save(model.state_dict(), best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
@@ -133,7 +126,7 @@ def main(cfg: DictConfig):
     df = pd.DataFrame(val_results, columns=headers)
     df.to_csv(csv_path)
     # save model ckpts
-    model_save_path = os.path.join(cfg.save_ckpt_path, f"final_ckpt.pth")
+    model_save_path = os.path.join(cfg.save_ckpt_dir, f"final_ckpt.pth")
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
     torch.save(model.state_dict(), model_save_path)
     logger.success(f"Model saved at {model_save_path}")

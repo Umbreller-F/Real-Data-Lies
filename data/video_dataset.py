@@ -196,14 +196,6 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
     if feature_type == "video":
-        real_dataset = VideoDataset(
-            processor=processor,
-            data_path=data_cfg.data_path, 
-            dataset_name=data_cfg.dataset_name,
-            generation_model=real_model,
-            mode=mode, 
-            num_frames=8,
-            )
         fake_datasets = []
         for gen_model in generation_models:
             fake_datasets.append(
@@ -217,6 +209,16 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
                     )
             )
         fake_dataset = ConcatDataset(fake_datasets)
+        load_len = len(fake_dataset)
+        real_dataset = VideoDataset(
+            processor=processor,
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=real_model,
+            mode=mode, 
+            num_frames=8,
+            load_len=load_len,
+            )
     return ConcatDataset([fake_dataset, real_dataset])
 
 

@@ -7,6 +7,7 @@ hydra:
 
 model:
   name: "timesformer-ssv2"
+  pretrained: True
 
 seed: 42
 trainer:

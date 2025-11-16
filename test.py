@@ -1,5 +1,4 @@
 from utils.experiment_utils import set_seed
-# from data.utils import get_generation_models, get_revised_generation_models
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
 from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
@@ -28,7 +27,7 @@ def test(cfg: DictConfig):
     # region Load Model
     logger.info(f"Loading model: {cfg.model.name}")
     if 'timesformer' in cfg.model.name:
-        model = TimesformerBinaryClassifier(model_name=cfg.model.name, freeze_backbone=False)
+        model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
@@ -73,13 +72,13 @@ def test(cfg: DictConfig):
                 cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
                 processor=model.processor, load_len=load_len
             )
-        test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+        test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         test_dataloaders[f"{fake_model}"] = test_loader
     # additionally test on composite dataset
-    '''composite_dataset = get_composite_video_dataset(
-        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=cfg.data.test_real_model, processor=model.processor
+    composite_dataset = get_composite_video_dataset(
+        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model, processor=model.processor
         )
-    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)'''
+    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # endregion
 
     # region Evaluate Model
@@ -105,13 +104,33 @@ def test(cfg: DictConfig):
             f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
         )
 
-    # Save results to CSV
     headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "FakeACC", "RealACC", "AUROC"]
     # Calculate mean of all metrics
     mean_metrics = ["Avg."]
     for i in range(1, len(headers)):
         mean_metrics.append(sum(result[i] for result in results) / len(results))
     results.append(mean_metrics)
+
+    # additionally evaluate on composite dataset
+    logger.info("Evaluating on composite dataset...")
+    test_results = test_on_dataloader(
+        model, composite_loader, device
+    )
+    results.append([
+        "Composite", 
+        test_results["precision"], 
+        test_results["recall"], 
+        test_results["accuracy"], 
+        test_results["f1"],
+        test_results["positive_accuracy"],
+        test_results["negative_accuracy"],
+        test_results["auroc"],
+    ])
+    tqdm.write(
+        f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
+        f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
+        f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
+    )
     
     csv_path = os.path.join(cfg.log_path, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
