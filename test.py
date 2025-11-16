@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED
 from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
@@ -56,6 +56,8 @@ def test(cfg: DictConfig):
             generation_models = GENVIDEO_SEINE
     elif cfg.data.dataset_name == "myvideos":
         generation_models = MYVIDEOS
+    elif cfg.data.dataset_name == "myvideos_compressed":
+        generation_models = MYVIDEOS_COMPRESSED
     
     load_len = cfg.data.test_load_len
     

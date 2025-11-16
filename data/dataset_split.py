@@ -59,6 +59,27 @@ MYVIDEOS = {
             # 'HunyuanVideo', 
             # 'MAGI-1', 
             'sora2', 
+            # 'Veo3.1',
+            'Kling',
+            'Ray3',
+            'Hailuo02',
+            # 'Wan2.1'
+        ]
+    },
+}
+
+MYVIDEOS_COMPRESSED = {
+    "real": {
+        "test":  ["MSR-VTT"]
+    },
+    "fake": {
+        "test":  [
+            # 'AnimateDiff', 
+            # 'CogVideoX', 
+            # 'FramePack', 
+            # 'HunyuanVideo', 
+            # 'MAGI-1', 
+            'sora2', 
             'Kling',
             'Ray3',
             'Hailuo02',

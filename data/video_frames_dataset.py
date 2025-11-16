@@ -202,20 +202,20 @@ if __name__ == "__main__":
                     len_load=4,
                     )'''
             # print(f"Video 0: {dataset[0]}")
-    # dataset = VideoFramesDataset(
-    #                 data_path=f"../Data/GenVideo", 
-    #                 generation_model="MSR-VTT", 
-    #                 dataset_name="GenVideo", 
-    #                 mode="test", 
-    #                 len_load=4550,
-    #                 )
-    for gen_model in ['AnimateDiff', 'CogVideoX', 'FramePack', 'HunyuanVideo', 'MAGI-1', 'sora2', 'Wan2.1']:
-        dataset = VideoFramesDataset(
-                        data_path=f"/home/ziyuanfang/Data/myvideos", 
-                        generation_model=gen_model, 
-                        dataset_name="myvideos", 
-                        mode="test", 
-                        len_load=100,
-                        )
-        print(f"Dataset for {gen_model}, len: {len(dataset)}")
-        print(f"Video 0: {dataset[0]}")
+    dataset = VideoFramesDataset(
+                    data_path=f"../Data/GenVideo", 
+                    generation_model="MSR-VTT", 
+                    dataset_name="GenVideo", 
+                    mode="test", 
+                    len_load=4550,
+                    )
+    # for gen_model in ['AnimateDiff', 'CogVideoX', 'FramePack', 'HunyuanVideo', 'MAGI-1', 'sora2', 'Wan2.1']:
+    #     dataset = VideoFramesDataset(
+    #                     data_path=f"/home/ziyuanfang/Data/myvideos", 
+    #                     generation_model=gen_model, 
+    #                     dataset_name="myvideos", 
+    #                     mode="test", 
+    #                     len_load=100,
+    #                     )
+    #     print(f"Dataset for {gen_model}, len: {len(dataset)}")
+    #     print(f"Video 0: {dataset[0]}")
