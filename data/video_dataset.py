@@ -140,8 +140,8 @@ class VideoDataset(Dataset):
         
         video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
         label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
-        # logger.warning(f'{frame_path}, {self.label}, {label}')
-        return video, label
+        video_id = frame_path.split('/')[-2]
+        return video, label, video_id
 
 
 def get_video_dataset(data_cfg, mode, processor, load_len=None, generation_model=None, real_model=None, pn_ratio=1):
@@ -225,6 +225,7 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
 if __name__ == "__main__":
     from omegaconf import OmegaConf
     from transformers import AutoImageProcessor
+    from torch.utils.data import DataLoader
 
     print("Testing VideoTensorDataset...")
     dataset = VideoTensorDataset(data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
@@ -232,10 +233,11 @@ if __name__ == "__main__":
     print(dataset[0][1])
 
     print("Testing VideoDataset...")
-    demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False), data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
+    demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
+                                data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
     print(demo_dataset[0][0].shape)
-    # breakpoint()
     print(demo_dataset[0][1])
+    print(demo_dataset[0][2])
 
     print("Testing get_video_dataset...")
     pn_ratio = 1
@@ -261,8 +263,17 @@ if __name__ == "__main__":
     real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 
                                           real_model=cfg.data.train_real_model, mode="train", 
                                           load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                          processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False))
+                                          processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", 
+                                                                                       use_fast=False, local_files_only=True))
     print(f"Total training samples: {len(real_fake_dataset)}")
     print(real_fake_dataset[0][0].shape)
     print(real_fake_dataset[0][1])
+
+    demo_loader = DataLoader(real_fake_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    for batch in demo_loader:
+        videos, labels, video_ids = batch
+        print(videos.shape)
+        print(labels.shape)
+        print(video_ids)
+        break
     

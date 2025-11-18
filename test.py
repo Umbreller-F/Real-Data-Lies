@@ -155,7 +155,7 @@ def test_on_dataloader(model, test_dataloader, device=torch.device('cuda')):
     all_raw_preds = []
 
     for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
-        inputs, labels = batch
+        inputs, labels, video_ids = batch
         inputs, labels = inputs.float().to(device), labels.to(device)
 
         logits = model(inputs)

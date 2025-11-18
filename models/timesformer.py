@@ -68,8 +68,13 @@ class TimesformerBinaryClassifier(nn.Module):
             param.requires_grad = False
         logger.info("Backbone frozen, only classifier head will be trained")
     
-    def forward(self, x):
-        return self.model(pixel_values=x).logits
+    def forward(self, x, output_attentions: bool = False):
+        # return self.model(pixel_values=x).logits
+        outputs = self.model(pixel_values=x, output_attentions=output_attentions)
+        if output_attentions:
+            return outputs.logits, outputs.attentions
+        else:
+            return outputs.logits
 
 
 if __name__ == "__main__":
@@ -96,20 +101,32 @@ if __name__ == "__main__":
     #     print(model(tensor).shape)
     # print(model.processor)
 
-    model_name = 'facebook/timesformer-base-finetuned-k400'
-    config = TimesformerConfig.from_pretrained(model_name, local_files_only=True)
-    model_from_scratch = TimesformerForVideoClassification(config)
+    # model_name = 'facebook/timesformer-base-finetuned-k400'
+    # config = TimesformerConfig.from_pretrained(model_name, local_files_only=True)
+    # model_from_scratch = TimesformerForVideoClassification(config)
 
-    processor = AutoImageProcessor.from_pretrained(
-        model_name, use_fast=False, local_files_only=True
-    )
-    logger.info("Initializing Timesformer from scratch (random weights)")
-    summary(model_from_scratch)
-    video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
-    inputs = processor(images=video, return_tensors="pt")
+    # processor = AutoImageProcessor.from_pretrained(
+    #     model_name, use_fast=False, local_files_only=True
+    # )
+    # logger.info("Initializing Timesformer from scratch (random weights)")
+    # summary(model_from_scratch)
+    # video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
+    # inputs = processor(images=video, return_tensors="pt")
+    # with torch.no_grad():
+    #     outputs = model_from_scratch(**inputs)
+    #     logits = outputs.logits
+
+    # predicted_class_idx = logits.argmax(-1).item()
+    # print("Predicted class:", model_from_scratch.config.id2label[predicted_class_idx])
+
+    model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
+    print(model)
+    summary(model)
+    model = model.cuda()
+    tensor = torch.tensor(np.random.rand(1, 8, 3, 224, 224), dtype=torch.float32).cuda()
     with torch.no_grad():
-        outputs = model_from_scratch(**inputs)
-        logits = outputs.logits
-
-    predicted_class_idx = logits.argmax(-1).item()
-    print("Predicted class:", model_from_scratch.config.id2label[predicted_class_idx])
+        # print(model(tensor).shape)
+        logits, attentions = model(tensor, output_attentions=True)
+    print(logits.shape, len(attentions))
+    print(model.processor)
+    breakpoint()

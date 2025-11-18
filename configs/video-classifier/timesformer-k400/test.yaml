@@ -45,3 +45,6 @@ log_path: "./results/test/baselines"
 save_csv_file: standard-Pika-npr.csv
 
 revise: True
+inference:
+  demo_path: "../Data/demo/sora2_frames"
+  label: "fake"

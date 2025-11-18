@@ -18,7 +18,7 @@ def train_classifer(model, train_dataloader, optimizer, loss_fn, device, writer,
     running_train_loss = 0.0
     
     for batch in tqdm(train_dataloader, desc="Training Progress", position=1, leave=False, total=len(train_dataloader)):
-        inputs, labels = batch
+        inputs, labels, video_ids = batch
         if global_step  % 500 == 0:
             writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
         inputs, labels = inputs.float().to(device), labels.float().to(device)
@@ -148,7 +148,7 @@ def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
 
         with torch.no_grad():
             for batch in tqdm(val_dataloader, desc="Evaluating", leave=False, ncols=100):
-                inputs, labels = batch
+                inputs, labels, video_ids = batch
                 inputs, labels = inputs.float().to(device), labels.to(device)
 
                 logits = model(inputs)
