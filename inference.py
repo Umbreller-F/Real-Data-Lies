@@ -78,10 +78,12 @@ def inference(cfg: DictConfig):
     logger.debug(f'Video: {video_id}, Label: {label}, Predicted: {predicted.item()}, Score: {output_pred.item():.4f}, Result: {correct_text}')
     # endregion
 
-    draw_attention_map(attentions=attentions, video_data=video_data, layer=0, video_id=video_id, save_path='./results/attention_maps/')
+    draw_attention_map(attentions=attentions, video_data=video_data, layer=0, video_id=video_id, save_path='./results/attention_maps/', result=is_correct)
 
 
-def draw_attention_map(attentions, video_data, layer, video_id, save_path=None):
+def draw_attention_map(attentions, video_data, layer, video_id, result, save_path=None):
+    if save_path:
+        save_path = save_path + ('correct/' if result else 'incorrect/')
     video_attention = attentions[layer]
     # print(f"Attention shape at layer {layer}: {video_attention.shape}")
     for frame_idx in range(video_attention.shape[0]):

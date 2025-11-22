@@ -19,6 +19,10 @@ import hydra
 @hydra.main(config_path="configs/experiments", config_name="standard-Pika-TALL.yaml", version_base=None)
 def test(cfg: DictConfig):
     # region Setup Logging
+    log_dir = os.path.join(cfg.log_path, cfg.experiment_name)
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"{cfg.data.dataset_name}.log")
+    logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
     logger.info(OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
@@ -67,12 +71,12 @@ def test(cfg: DictConfig):
         if fake_model == "Sora":
             test_dataset = get_video_dataset(
                 cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                processor=model.processor, load_len=56
+                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=56
             )
         else:
             test_dataset = get_video_dataset(
                 cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                processor=model.processor, load_len=load_len
+                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=load_len
             )
         test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         test_dataloaders[f"{fake_model}"] = test_loader

@@ -2,6 +2,7 @@ from utils.experiment_utils import set_seed
 # from data.utils import get_generation_models, get_revised_generation_models
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
 from data.video_dataset import get_video_dataset
+from data.wan2_2_vae import Wan2_2_VAE
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
@@ -58,15 +59,25 @@ def main(cfg: DictConfig):
     # train data
     real_model = generation_models["real"]["train"][0]
     fake_model = generation_models["fake"]["train"][0]
+    if cfg.data.vae_recon:
+        vae = Wan2_2_VAE(
+            vae_pth=os.path.join('./ckpts', 'Wan2.2_VAE.pth'),
+            device=torch.device("cuda")
+        )
+        recon_prop = cfg.data.recon_prop
+    else:
+        vae, recon_prop = None, None
     train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
-                                      mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio)
+                                      mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
+                                      sample_strategy=cfg.data.sample_strategy, vae=vae, recon_prop=recon_prop)
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # val data
     val_dataloaders = {}
     real_model = generation_models["real"]["val"][0]
     fake_model = generation_models["fake"]["val"][0]
     val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
-                                    processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len)
+                                    processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
+                                    sample_strategy=cfg.data.sample_strategy, vae=vae, recon_prop=recon_prop)
     val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion

@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from typing import Literal
 from torchinfo import summary
+from loguru import logger
 
 
 class DINOv2WithLinearProbe(nn.Module):
@@ -137,9 +138,9 @@ class DINOv3WithLinearProbe(nn.Module):
 
 
 if __name__ == "__main__":
-    print("This module is not meant to be run directly. Import it in your code to use the models.")
+    logger.debug("This module is not meant to be run directly. Import it in your code to use the models.")
 
-    print("Testing DINOv2WithLinearProbe model...")
+    logger.debug("Testing DINOv2WithLinearProbe model...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dinov2 = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
     dinov2.to(device)
@@ -149,7 +150,7 @@ if __name__ == "__main__":
     output = dinov2(input_tensor)  # Forward pass
     print("Output shape:", output.shape)  # Should print the shape of the output tensor
 
-    print("Testing DINOv3WithLinearProbe model...")
+    logger.debug("Testing DINOv3WithLinearProbe model...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dinov3 = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
     dinov3.to(device)

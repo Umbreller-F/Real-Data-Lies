@@ -91,19 +91,30 @@ class VideoTensorDataset(Dataset):
 
 
 class VideoDataset(Dataset):
-    def __init__(self, processor, generation_model: str, data_path: str, 
+    def __init__(self, processor, generation_model: str, data_path: str, vae = None, sample_strategy='uniform',
                  mode: str = "train", load_len: int = None, num_frames: int = 8, dataset_name: str = "GenVideo",):
         super().__init__()
         self.processor = processor
+        self.vae = vae
         self.data_path = data_path
         self.dataset_name = dataset_name
         self.generation_model = generation_model
         self.mode = mode
         self.num_frames = num_frames
-        self.label = get_label_from_generation_model(self.generation_model)
+        origin_label = get_label_from_generation_model(self.generation_model)
+        if self.vae is not None:
+            self.label = "fake"
+        else:
+            self.label = origin_label 
         # data_dir
+        if sample_strategy=='uniform':
+            frames_dir = 'video_frames'
+        elif sample_strategy=='consecutive':
+            frames_dir = 'consecutive_frames'
+        else:
+            raise NotImplementedError(f"Sample strategy {sample_strategy} is not supported.")
         self.base_dir = os.path.join(
-            self.data_path, 'video_frames', self.label, self.generation_model, self.mode
+            self.data_path, frames_dir, origin_label, self.generation_model, self.mode
         )
         # all videos path
         self.video_dirs = sorted(
@@ -134,9 +145,15 @@ class VideoDataset(Dataset):
         frame_paths = self.video_frame_paths[idx]
         
         video_data = []
-        for frame_path in frame_paths:
-            img = Image.open(frame_path).convert('RGB')
-            video_data.append(np.array(img))
+        if self.vae is not None:
+            recon_imgs = self.vae.reconstruct(frame_paths)
+            for img in recon_imgs:
+                video_data.append(np.array(img))
+            frame_path = frame_paths[0]  # for video_id
+        else:
+            for frame_path in frame_paths:
+                img = Image.open(frame_path).convert('RGB')
+                video_data.append(np.array(img))
         
         video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
         label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
@@ -144,7 +161,8 @@ class VideoDataset(Dataset):
         return video, label, video_id
 
 
-def get_video_dataset(data_cfg, mode, processor, load_len=None, generation_model=None, real_model=None, pn_ratio=1):
+def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, 
+                      generation_model=None, real_model=None, pn_ratio=1, sample_strategy='uniform'):
     """
     Load and concatenate video datasets for fake and real videos.
     
@@ -168,25 +186,66 @@ def get_video_dataset(data_cfg, mode, processor, load_len=None, generation_model
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
     if feature_type == "video":
-        fake_dataset = VideoDataset(
-            processor=processor,
-            data_path=data_cfg.data_path, 
-            dataset_name=data_cfg.dataset_name,
-            generation_model=generation_model,
-            mode=mode, 
-            num_frames=8,
-            load_len=load_len,
-            )
-        real_len = int(load_len / pn_ratio) if load_len else None
-        real_dataset = VideoDataset(
-            processor=processor,
-            data_path=data_cfg.data_path, 
-            dataset_name=data_cfg.dataset_name,
-            generation_model=real_model,
-            mode=mode, 
-            num_frames=8,
-            load_len=real_len,
-            )
+        if vae is not None:
+            logger.info(f'Using VAE reconstructed samples as fakes, proportion: {recon_prop:.1%}')
+            real_dataset = VideoDataset(
+                processor=processor,
+                data_path=data_cfg.data_path, 
+                dataset_name=data_cfg.dataset_name,
+                generation_model=real_model,
+                sample_strategy=sample_strategy,
+                mode=mode, 
+                num_frames=8,
+                load_len=load_len,
+                )
+            fake_len = int(load_len * pn_ratio) if load_len else None
+            vae_len = int(fake_len * recon_prop)
+            vae_fake_dataset = VideoDataset(
+                processor=processor,
+                data_path=data_cfg.data_path, 
+                dataset_name=data_cfg.dataset_name,
+                generation_model=real_model,
+                sample_strategy=sample_strategy,
+                mode=mode, 
+                num_frames=8,
+                load_len=vae_len,
+                )
+            if recon_prop < 1:
+                ori_fake_dataset = VideoDataset(
+                    processor=processor,
+                    data_path=data_cfg.data_path, 
+                    dataset_name=data_cfg.dataset_name,
+                    generation_model=generation_model,
+                    sample_strategy=sample_strategy,
+                    mode=mode, 
+                    num_frames=8,
+                    load_len=fake_len-vae_len,
+                    )
+                fake_dataset = ConcatDataset([vae_fake_dataset, ori_fake_dataset])
+            else:
+                fake_dataset = vae_fake_dataset
+        else:
+            fake_dataset = VideoDataset(
+                processor=processor,
+                data_path=data_cfg.data_path, 
+                dataset_name=data_cfg.dataset_name,
+                generation_model=generation_model,
+                sample_strategy=sample_strategy,
+                mode=mode, 
+                num_frames=8,
+                load_len=load_len,
+                )
+            real_len = int(load_len / pn_ratio) if load_len else None
+            real_dataset = VideoDataset(
+                processor=processor,
+                data_path=data_cfg.data_path, 
+                dataset_name=data_cfg.dataset_name,
+                generation_model=real_model,
+                sample_strategy=sample_strategy,
+                mode=mode, 
+                num_frames=8,
+                load_len=real_len,
+                )
     else:
         raise NotImplementedError(f"Feature type {feature_type} is not supported.")
     return ConcatDataset([fake_dataset, real_dataset])
@@ -223,23 +282,20 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
 
 
 if __name__ == "__main__":
+    # use python -m data.video_dataset to test
+    logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")
     from omegaconf import OmegaConf
     from transformers import AutoImageProcessor
     from torch.utils.data import DataLoader
 
-    print("Testing VideoTensorDataset...")
-    dataset = VideoTensorDataset(data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
-    print(dataset[0][0].shape)
-    print(dataset[0][1])
+    logger.debug("Testing VideoTensorDataset...")
+    dataset = VideoTensorDataset(data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
 
-    print("Testing VideoDataset...")
+    logger.debug("Testing VideoDataset...")
     demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
-                                data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
-    print(demo_dataset[0][0].shape)
-    print(demo_dataset[0][1])
-    print(demo_dataset[0][2])
+                                data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
 
-    print("Testing get_video_dataset...")
+    logger.debug("Testing get_video_dataset...")
     pn_ratio = 1
     cfg = OmegaConf.create({
         'data': {
@@ -248,7 +304,7 @@ if __name__ == "__main__":
             'feature_type': 'video',
             'dataset_name': "GenVideo",
             'num_workers': 16,
-            'data_path': "/home/ziyuanfang/Data/GenVideo",
+            'data_path': "../Data/GenVideo",
             'num_frames': 8,
             'generation_model': "Pika",
             'input_shape': [224,224],
@@ -265,15 +321,25 @@ if __name__ == "__main__":
                                           load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
                                           processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", 
                                                                                        use_fast=False, local_files_only=True))
-    print(f"Total training samples: {len(real_fake_dataset)}")
-    print(real_fake_dataset[0][0].shape)
-    print(real_fake_dataset[0][1])
+    logger.debug(f"Total training samples: {len(real_fake_dataset)}")
 
     demo_loader = DataLoader(real_fake_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     for batch in demo_loader:
         videos, labels, video_ids = batch
-        print(videos.shape)
-        print(labels.shape)
-        print(video_ids)
         break
+
+    from data.wan2_2_vae import Wan2_2_VAE
+    logger.debug("Testing VideoDataset with VAE...")
+    vae = Wan2_2_VAE(
+        vae_pth=os.path.join('./ckpts', 'Wan2.2_VAE.pth'),
+        device=torch.device("cuda"))
+    vae_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
+                                vae=vae, data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
     
+    real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 
+                                          real_model=cfg.data.train_real_model, mode="train", 
+                                          load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
+                                          vae=vae, recon_prop=0.5,
+                                          processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", 
+                                                                                       use_fast=False, local_files_only=True))
+    breakpoint()

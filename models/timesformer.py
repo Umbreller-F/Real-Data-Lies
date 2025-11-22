@@ -78,55 +78,11 @@ class TimesformerBinaryClassifier(nn.Module):
 
 
 if __name__ == "__main__":
-    print("This module is not meant to be run directly. Import it in your code to use the models.")
-    # video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
-
-    # processor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
-    # model = TimesformerForVideoClassification.from_pretrained("facebook/timesformer-base-finetuned-ssv2", local_files_only=True)
-
-    # inputs = processor(images=video, return_tensors="pt")
-
-    # with torch.no_grad():
-    #     outputs = model(**inputs)
-    #     logits = outputs.logits
-
-    # predicted_class_idx = logits.argmax(-1).item()
-    # print("Predicted class:", model.config.id2label[predicted_class_idx])
-    # summary(model)
-
-    # tensor = torch.tensor(np.random.rand(32, 8, 3, 224, 224), dtype=torch.float32).cuda()
-    # model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
-    # model = model.cuda()
-    # with torch.no_grad():
-    #     print(model(tensor).shape)
-    # print(model.processor)
-
-    # model_name = 'facebook/timesformer-base-finetuned-k400'
-    # config = TimesformerConfig.from_pretrained(model_name, local_files_only=True)
-    # model_from_scratch = TimesformerForVideoClassification(config)
-
-    # processor = AutoImageProcessor.from_pretrained(
-    #     model_name, use_fast=False, local_files_only=True
-    # )
-    # logger.info("Initializing Timesformer from scratch (random weights)")
-    # summary(model_from_scratch)
-    # video = list(np.random.randint(0, 256, (8, 224, 224, 3), dtype=np.uint8))
-    # inputs = processor(images=video, return_tensors="pt")
-    # with torch.no_grad():
-    #     outputs = model_from_scratch(**inputs)
-    #     logits = outputs.logits
-
-    # predicted_class_idx = logits.argmax(-1).item()
-    # print("Predicted class:", model_from_scratch.config.id2label[predicted_class_idx])
-
+    logger.debug("This module is not meant to be run directly. Import it in your code to use the models.")
     model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
-    print(model)
     summary(model)
     model = model.cuda()
     tensor = torch.tensor(np.random.rand(1, 8, 3, 224, 224), dtype=torch.float32).cuda()
     with torch.no_grad():
-        # print(model(tensor).shape)
         logits, attentions = model(tensor, output_attentions=True)
-    print(logits.shape, len(attentions))
-    print(model.processor)
     breakpoint()

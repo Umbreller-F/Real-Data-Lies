@@ -185,3 +185,5 @@ nohup_logs/
 *.sh
 train.pid
 command
+Wan2.2_VAE.pth
+.msc

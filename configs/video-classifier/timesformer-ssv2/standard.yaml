@@ -39,6 +39,9 @@ data:
   train_load_len: 10000
   val_load_len: 100
   diffuse_steps: 5
+  vae_recon: False
+  recon_prop: 0.5
+  sample_strategy: 'uniform'
   
 task_type: standard # standard / unbalance
 debug: False

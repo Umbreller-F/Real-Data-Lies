@@ -38,6 +38,9 @@ data:
   test_load_len: 500
   batch_size: 16
   val_batch_size: 32
+  vae_recon: False
+  recon_prop: 0.5
+  sample_strategy: 'uniform'
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
