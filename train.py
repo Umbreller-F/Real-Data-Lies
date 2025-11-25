@@ -1,8 +1,6 @@
 from utils.experiment_utils import set_seed
-# from data.utils import get_generation_models, get_revised_generation_models
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
 from data.video_dataset import get_video_dataset
-from data.wan2_2_vae import Wan2_2_VAE
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
@@ -16,6 +14,7 @@ from torchinfo import summary
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
+import multiprocessing as mp
 import hydra
 import torch
 import time
@@ -27,7 +26,7 @@ def main(cfg: DictConfig):
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{cfg.model.name}_{time.strftime('%Y%m%d_%H%M%S')}.log")
     logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
-    logger.info(OmegaConf.to_yaml(cfg))
+    logger.info('Training configuration:\n' + OmegaConf.to_yaml(cfg))
     writer = SummaryWriter(log_dir=log_dir)
     set_seed(cfg.seed)
     
@@ -60,11 +59,9 @@ def main(cfg: DictConfig):
     real_model = generation_models["real"]["train"][0]
     fake_model = generation_models["fake"]["train"][0]
     if cfg.data.vae_recon:
-        vae = Wan2_2_VAE(
-            vae_pth=os.path.join('./ckpts', 'Wan2.2_VAE.pth'),
-            device=torch.device("cuda")
-        )
+        mp.set_start_method('spawn', force=True)
         recon_prop = cfg.data.recon_prop
+        vae = cfg.data.vae_model
     else:
         vae, recon_prop = None, None
     train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
@@ -86,6 +83,8 @@ def main(cfg: DictConfig):
     global_step = 0
     best_val_auroc = - float("inf")
     best_val_acc = - float("inf")
+    early_stop_patience = 5
+    no_improvement_count = 0
     # loss function and optimizer
     criterion = nn.BCEWithLogitsLoss()
     if cfg.trainer.optimizer.name == "adam":
@@ -106,9 +105,20 @@ def main(cfg: DictConfig):
             if (epoch+1) % cfg.trainer.val_check_interval == 0:
                 headers, val_results = val_classifer(model, val_dataloaders, criterion, device, writer, global_step)
                 val_info = tabulate(val_results, headers=headers, tablefmt="grid")
+
+                logger.info(
+                    f"Epoch {epoch+1:2}/{cfg.trainer.max_epochs:2}\nTrain Info: {train_info}\nValidation Info:\n{val_info}"
+                )
                 
                 val_auroc = val_results[-1][-1]
                 val_acc = val_results[-1][-3]
+                # Early stopping logic
+                if val_acc > best_val_acc or val_auroc > best_val_auroc:
+                    no_improvement_count = 0  # Reset counter
+                else:
+                    no_improvement_count += 1
+                    logger.info(f"No improvement, consecutive count: {no_improvement_count}/{early_stop_patience}")
+                # save best model
                 if val_acc > best_val_acc:
                     logger.info(f"Current acc ({val_acc:.4f}) > Best acc ({best_val_acc:.4f})")
                     best_val_acc = val_acc
@@ -124,9 +134,14 @@ def main(cfg: DictConfig):
                     torch.save(model.state_dict(), best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
 
-                logger.info(
-                    f"Epoch {epoch+1:2}/{cfg.trainer.max_epochs:2}\nTrain Info: {train_info} \n{val_info}"
-                )
+                # Check if training should stop early
+                if no_improvement_count >= early_stop_patience:
+                    logger.info(f"Validation metric hasn't improved for {early_stop_patience} consecutive epochs, stop training early.")
+                    break
+                current_train_loss = train_results.get("train_loss", float('inf'))
+                if current_train_loss == 0:
+                    logger.info(f"Model has perfectly converged: loss={current_train_loss:.4f}, stop training early.")
+                    break
                 
             epoch_pbar.set_postfix({
                 **train_results,

@@ -187,3 +187,5 @@ train.pid
 command
 Wan2.2_VAE.pth
 .msc
+*.json
+*.pt

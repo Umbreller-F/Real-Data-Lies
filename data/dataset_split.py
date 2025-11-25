@@ -87,3 +87,15 @@ MYVIDEOS_COMPRESSED = {
         ]
     },
 }
+
+VAE = {
+    "real": {
+        "test":  ["MSR-VTT"]
+    },
+    "fake": {
+        "test":  [
+            'Wan2.2',
+            # 'Hunyuan'
+        ]
+    },
+}

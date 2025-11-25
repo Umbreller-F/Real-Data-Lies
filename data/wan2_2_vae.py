@@ -5,6 +5,7 @@ from einops import rearrange
 from PIL import Image
 
 import torch
+import os
 import torch.amp as amp
 import torch.nn as nn
 import torch.nn.functional as F
@@ -1049,8 +1050,7 @@ class Wan2_2_VAE:
             with amp.autocast(device_type='cuda', dtype=self.dtype):
                 return [
                     self.model.decode(u.unsqueeze(0),
-                                      self.scale).float().clamp_(-1,
-                                                                 1).squeeze(0)
+                                      self.scale).float().clamp_(-1, 1).squeeze(0)
                     for u in zs
                 ]
         except TypeError as e:
@@ -1081,6 +1081,7 @@ class Wan2_2_VAE:
         else:
             return ow2, oh2
 
+    @torch.no_grad()
     def reconstruct(self, frame_paths) -> list[Image.Image]:
         if not isinstance(frame_paths, list):
             raise TypeError("frame_paths should be a list")
@@ -1114,7 +1115,6 @@ class Wan2_2_VAE:
 
 if __name__ == "__main__":
     logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")
-    import os
     vae = Wan2_2_VAE(
         vae_pth=os.path.join('./ckpts', 'Wan2.2_VAE.pth'),
         device=torch.device("cuda"))

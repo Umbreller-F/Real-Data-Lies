@@ -53,38 +53,34 @@ def test(cfg: DictConfig):
 
     # region Load Test Data
     logger.info(f"Loading test data of {cfg.data.dataset_name}...")
-    if cfg.data.dataset_name == "GenVideo":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_PIKA
-        elif cfg.data.generation_model == "SEINE":
-            generation_models = GENVIDEO_SEINE
-    elif cfg.data.dataset_name == "myvideos":
-        generation_models = MYVIDEOS
-    elif cfg.data.dataset_name == "myvideos_compressed":
-        generation_models = MYVIDEOS_COMPRESSED
+    # if cfg.data.dataset_name == "GenVideo":
+    #     if cfg.data.generation_model == "Pika":
+    #         generation_models = GENVIDEO_PIKA
+    #     elif cfg.data.generation_model == "SEINE":
+    #         generation_models = GENVIDEO_SEINE
+    # elif cfg.data.dataset_name == "myvideos":
+    #     generation_models = MYVIDEOS
+    # elif cfg.data.dataset_name == "myvideos_compressed":
+    #     generation_models = MYVIDEOS_COMPRESSED
+    generation_models = VAE
     
     load_len = cfg.data.test_load_len
     
     test_dataloaders = {}
     real_model = generation_models["real"]["test"][0]
     for fake_model in generation_models["fake"]["test"]:
-        if fake_model == "Sora":
-            test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=56
-            )
-        else:
-            test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=load_len
-            )
+        test_dataset = get_video_dataset(
+            cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
+            sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=load_len,
+            vae=fake_model, recon_prop=1.0
+        )
         test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         test_dataloaders[f"{fake_model}"] = test_loader
     # additionally test on composite dataset
-    composite_dataset = get_composite_video_dataset(
+    '''composite_dataset = get_composite_video_dataset(
         cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model, processor=model.processor
         )
-    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)'''
     # endregion
 
     # region Evaluate Model
@@ -118,7 +114,7 @@ def test(cfg: DictConfig):
     results.append(mean_metrics)
 
     # additionally evaluate on composite dataset
-    logger.info("Evaluating on composite dataset...")
+    '''logger.info("Evaluating on composite dataset...")
     test_results = test_on_dataloader(
         model, composite_loader, device
     )
@@ -136,7 +132,7 @@ def test(cfg: DictConfig):
         f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
         f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
         f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
-    )
+    )'''
     
     csv_path = os.path.join(log_dir, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)

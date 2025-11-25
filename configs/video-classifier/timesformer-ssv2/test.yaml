@@ -39,6 +39,7 @@ data:
   batch_size: 16
   val_batch_size: 32
   vae_recon: False
+  vae_model: 'Wan2.2'
   recon_prop: 0.5
   sample_strategy: 'uniform'
 
