@@ -37,12 +37,12 @@ data:
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
   train_load_len: 10000
-  val_load_len: 100
+  val_load_len: 1000
   diffuse_steps: 5
   vae_recon: False
   vae_model: 'Wan2.2'
   recon_prop: 0.5
-  sample_strategy: 'uniform'
+  sample_strategy: 'fixed_interval'
   
 task_type: standard # standard / unbalance
 debug: False

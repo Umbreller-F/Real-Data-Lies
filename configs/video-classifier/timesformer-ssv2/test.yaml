@@ -35,13 +35,13 @@ data:
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
   train_load_len: 10000
-  test_load_len: 500
+  test_load_len: 1000
   batch_size: 16
   val_batch_size: 32
   vae_recon: False
   vae_model: 'Wan2.2'
   recon_prop: 0.5
-  sample_strategy: 'uniform'
+  sample_strategy: 'fixed_interval'
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"

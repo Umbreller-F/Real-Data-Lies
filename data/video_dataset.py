@@ -91,29 +91,35 @@ class VideoTensorDataset(Dataset):
 
 
 class VideoDataset(Dataset):
-    def __init__(self, processor, generation_model: str, data_path: str, vae = None, sample_strategy='uniform',
+    def __init__(self, processor, generation_model: str, data_path: str, vae = None, sample_strategy='fixed_interval', frame_sample_rate: int = 4,
                  mode: str = "train", load_len: int = None, num_frames: int = 8, dataset_name: str = "GenVideo",):
         super().__init__()
+        assert num_frames > 1, f"num_frames must be greater than 1, but got {num_frames}"
+        self.num_frames = num_frames
+        SUPPORTED_STRATEGIES = ['consecutive', 'fixed_interval'] # ['uniform', 'consecutive', 'fixed_interval']
+        assert sample_strategy in SUPPORTED_STRATEGIES, f"Sample strategy {sample_strategy} is not supported."
+        self.sample_strategy = sample_strategy
+        if self.sample_strategy == "fixed_interval":
+            logger.info(f'Fixed frame sampling rate: 1/{frame_sample_rate}, {self.num_frames} frames per sample.')
+        elif self.sample_strategy == "consecutive":
+            self.frame_sample_rate = 1
+            logger.info(f'Use consecutive frame sampling, {self.num_frames} frames per sample.')
+        elif self.sample_strategy == 'uniform':
+            logger.info(f'Use uniform sampling, {self.num_frames} frames per sample.')
         self.processor = processor
         self.vae = vae
         self.data_path = data_path
         self.dataset_name = dataset_name
         self.generation_model = generation_model
         self.mode = mode
-        self.num_frames = num_frames
         if self.vae is not None:
             use_vae = True
             self.label = "fake"
         else:
             use_vae = False
             self.label = get_label_from_generation_model(self.generation_model)
-        # data_dir
-        if sample_strategy=='uniform':
-            frames_dir = 'video_frames'
-        elif sample_strategy=='consecutive':
-            frames_dir = 'consecutive_frames'
-        else:
-            raise NotImplementedError(f"Sample strategy {sample_strategy} is not supported.")
+        frames_dir = 'video_frames'
+        self.frame_sample_rate = frame_sample_rate
         if not use_vae:
             self.base_dir = os.path.join(
                 self.data_path, frames_dir, self.label, self.generation_model, self.mode
@@ -129,6 +135,7 @@ class VideoDataset(Dataset):
         )
         # all video frames path
         self.video_frame_paths = []
+        required_total_frames = (self.num_frames - 1) * self.frame_sample_rate + 1
         for video_dir in self.video_dirs:
             # Check if the directory exists and contains .jpg files
             if os.path.isdir(video_dir):
@@ -136,9 +143,14 @@ class VideoDataset(Dataset):
                     [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg')],
                     key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
                 )
-                # Only add the frames list if it is not empty
-                if len(frames) == self.num_frames:
-                    self.video_frame_paths.append(frames)
+                if len(frames) < self.num_frames:
+                    continue
+                elif len(frames) >= required_total_frames:
+                    sampled_frames = frames[:required_total_frames:self.frame_sample_rate]
+                else:
+                    max_sample_rate = max(1, (len(frames) - 1) // (self.num_frames - 1))
+                    sampled_frames = frames[::max_sample_rate][:self.num_frames]
+                self.video_frame_paths.append(sampled_frames)
 
         if load_len is not None:
             self.video_frame_paths = self.video_frame_paths[:load_len]
@@ -167,8 +179,8 @@ class VideoDataset(Dataset):
         return video, label, video_id
 
 
-def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, 
-                      generation_model=None, real_model=None, pn_ratio=1, sample_strategy='uniform'):
+def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, frame_sample_rate=4,
+                      generation_model=None, real_model=None, pn_ratio=1, sample_strategy='fixed_interval'):
     """
     Load and concatenate video datasets for fake and real videos.
     
@@ -200,6 +212,7 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                 dataset_name=data_cfg.dataset_name,
                 generation_model=real_model,
                 sample_strategy=sample_strategy,
+                frame_sample_rate=frame_sample_rate,
                 mode=mode, 
                 num_frames=8,
                 load_len=load_len,
@@ -212,6 +225,7 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                 dataset_name=data_cfg.dataset_name,
                 generation_model=real_model,
                 sample_strategy=sample_strategy,
+                frame_sample_rate=frame_sample_rate,
                 mode=mode, 
                 num_frames=8,
                 load_len=vae_len,
@@ -224,6 +238,7 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                     dataset_name=data_cfg.dataset_name,
                     generation_model=generation_model,
                     sample_strategy=sample_strategy,
+                    frame_sample_rate=frame_sample_rate,
                     mode=mode, 
                     num_frames=8,
                     load_len=fake_len-vae_len,
@@ -238,6 +253,7 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                 dataset_name=data_cfg.dataset_name,
                 generation_model=generation_model,
                 sample_strategy=sample_strategy,
+                frame_sample_rate=frame_sample_rate,
                 mode=mode, 
                 num_frames=8,
                 load_len=load_len,
@@ -249,6 +265,7 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                 dataset_name=data_cfg.dataset_name,
                 generation_model=real_model,
                 sample_strategy=sample_strategy,
+                frame_sample_rate=frame_sample_rate,
                 mode=mode, 
                 num_frames=8,
                 load_len=real_len,
@@ -321,7 +338,7 @@ if __name__ == "__main__":
 
     logger.debug("Testing VideoDataset...")
     demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
-                                data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test")
+                                data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Crafter", mode="test")
 
     logger.debug("Testing get_video_dataset...")
     real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 

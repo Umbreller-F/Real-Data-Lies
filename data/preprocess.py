@@ -9,6 +9,7 @@ import multiprocessing
 def get_video_frame_count(file_path):
     """get total frame count of video"""
     video = VideoFileClip(file_path)
+    # print(video.fps, video.duration)
     return int(video.fps * video.duration)
 
 # region uniform sampling
@@ -86,12 +87,10 @@ def process_video_consecutive(args):
     if video_path.endswith((".mp4", ".gif")):
         try:
             os.makedirs(output_dir, exist_ok=True)
-            
-            # 直接从头开始连续抽取指定数量的帧
             cmd = (
                 f"ffmpeg -i {video_path} "
-                f"-vframes {num_frames} "  # 直接指定要抽取的帧数
-                f"-q:v 2 "  # 设置图片质量
+                f"-vframes {num_frames} "
+                f"-q:v 2 "
                 f"{output_dir}/frame%d.jpg"
                 f" > /dev/null 2>&1"
             )
@@ -130,8 +129,61 @@ def setup_dataset_consecutive(data_path='../Data/myvideos', generation_model='MS
         process_video2frames_consecutive(video_dir, unproceesed_ids, num_frames, frame_dir)
 # endregion
 
+# region extract all frames
+def extract_all_frames(args):
+    """Extract all frames from the entire video"""
+    video_path, output_dir = args
+    supported_formats = (".mp4", ".gif", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv")
+    
+    if video_path.lower().endswith(supported_formats):
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+            # Extract all frames without limiting the number
+            cmd = (
+                f"ffmpeg -i {video_path} "
+                f"-q:v 2 "  # Set image quality
+                f"{output_dir}/frame%04d.jpg"
+                f" > /dev/null 2>&1"
+            )
+            ret = os.system(cmd)
+            if ret != 0:
+                print(f"FFmpeg error processing {video_path}")
+        except Exception as e:
+            print(f"Error processing {video_path}: {str(e)}")
+    else:
+        print(f"Unsupported video format: {video_path}. Supported formats: {', '.join(supported_formats)}")
+
+def process_video_in_parallel(dir, ids, output_base_dir):
+    video_args = [(os.path.join(dir, f"{id}.mp4"), os.path.join(output_base_dir, id)) for id in ids]
+    logger.info(f"Processing {len(ids)} videos")
+    pool = multiprocessing.Pool(processes=24)
+    pool.map(extract_all_frames, video_args)
+    pool.close()
+    pool.join()
+
+def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VTT', label='real', mode='test', len_load=None):
+    assert os.path.exists(data_path), f"Data path {data_path} does not exist"
+    video_ids_txt = os.path.join(data_path, "split", label, generation_model, f"{mode}_ids.txt")
+    assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
+    with open(video_ids_txt, "r") as f:
+        video_ids = [line.strip() for line in f if line.strip()]
+    video_ids = [vid for vid in video_ids if vid.endswith('.mp4')]
+    if len_load is not None:
+        video_ids = video_ids[:len_load]
+    video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
+    logger.info(f"len of video_ids is {len(video_ids)}")
+    video_dir = os.path.join(data_path, "video", label, generation_model)
+    frame_dir = os.path.join(data_path, "video_frames", label, generation_model, mode)
+    unproceesed_ids = [
+        video_id for video_id in video_ids
+        if not os.path.isdir(os.path.join(frame_dir, video_id))
+    ]
+    if len(unproceesed_ids) > 0:
+        process_video_in_parallel(video_dir, unproceesed_ids, frame_dir)
+# endregion
+
 if __name__ == "__main__":
     logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")
-    # setup_dataset(len_load=100)
-    # setup_dataset(generation_model='Hailuo02', label='fake', mode='test')
-    setup_dataset_consecutive(generation_model='Hailuo02', label='fake', mode='test')
+    # video_path, output_dir = '../Data/demo2extract/ZYc410CE4Rg_000001_000011.mp4', '../Data/extracted_frames'
+    # extract_all_frames((video_path, output_dir))
+    dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VTT', label='real', mode='test')

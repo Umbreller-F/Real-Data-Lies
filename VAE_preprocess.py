@@ -37,7 +37,12 @@ def process_single_video(args):
         if vae_instance is None:
             return f"{v_f}: error - VAE not initialized"
         
-        frame_paths = [os.path.join(v_f, f"frame{i}.jpg") for i in range(1, 9)]
+        # frame_paths = [os.path.join(v_f, f"frame{i}.jpg") for i in range(1, 9)]
+        frame_paths = sorted(
+            [os.path.join(v_f, f) for f in os.listdir(v_f) if f.endswith('.jpg')],
+            key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
+        )
+        frame_paths = frame_paths[:32]
         
         # Check if all frame files exist
         if not all(os.path.exists(fp) for fp in frame_paths):
@@ -67,11 +72,11 @@ def process_single_video(args):
 if __name__ == "__main__":
     mp.set_start_method('spawn', force=True)
     vae_model = 'Wan2.2'
-    real_domain = 'MSR-VTT'
-    split = 'test'
-    chunk_index = 1
-    chunk_size = 100
-    num_processes = 4
+    real_domain = 'Kinetics-400'
+    split = 'val'
+    chunk_index = 0
+    chunk_size = 3400
+    num_processes = 5
     
     real_video_frames_dir = f'../Data/GenVideo/video_frames/real/{real_domain}/{split}'
     save_dir = f'../Data/GenVideo/video_frames/fake/VAE/{vae_model}/{split}'

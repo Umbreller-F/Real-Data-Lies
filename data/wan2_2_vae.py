@@ -1017,7 +1017,8 @@ class Wan2_2_VAE:
 
         self.vae_stride = (4, 16, 16)
         self.patch_size = (1, 2, 2)
-        self.max_area = 1280 * 720
+        # self.max_area = 1280 * 720
+        self.max_area = 832 * 480
 
         # init model
         self.model = (
@@ -1114,11 +1115,26 @@ class Wan2_2_VAE:
 
 
 if __name__ == "__main__":
+    import time
+
     logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")
     vae = Wan2_2_VAE(
         vae_pth=os.path.join('./ckpts', 'Wan2.2_VAE.pth'),
         device=torch.device("cuda"))
-    frame_paths = [f"../Data/myvideos/video_frames/fake/Kling/test/Kling_005/frame{i}.jpg" for i in range(1,9)]
+    # frame_paths = [f"../Data/myvideos/video_frames/fake/Kling/test/Kling_005/frame{i}.jpg" for i in range(1,9)]
+    # frame_paths =[f'../Data/extracted_frames/frame{str(i).zfill(4)}.jpg' for i in range(1, 32)]
+    video_dir = '../Data/extracted_frames'
+    frame_paths = sorted(
+        [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg')],
+        key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
+    )
+    start_time = time.perf_counter()
     recon_imgs = vae.reconstruct(frame_paths)
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    peak_memory = torch.cuda.max_memory_allocated() // 1024 // 1024
+    print(f"Execution time: {execution_time:.4f} seconds")
+    print(f"Peak GPU memory usage: {peak_memory} MB")
+
     for idx, img in enumerate(recon_imgs):
-        img.save(f'results/vae_reconstruct/recon_frame_{idx+1}.jpg')
+        img.save(f'../Data/recon_frames/recon_frame_{idx+1}.jpg')
