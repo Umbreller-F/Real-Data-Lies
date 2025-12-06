@@ -154,12 +154,28 @@ def extract_all_frames(args):
         print(f"Unsupported video format: {video_path}. Supported formats: {', '.join(supported_formats)}")
 
 def process_video_in_parallel(dir, ids, output_base_dir):
-    video_args = [(os.path.join(dir, f"{id}.mp4"), os.path.join(output_base_dir, id)) for id in ids]
-    logger.info(f"Processing {len(ids)} videos")
-    pool = multiprocessing.Pool(processes=24)
-    pool.map(extract_all_frames, video_args)
-    pool.close()
-    pool.join()
+    video_args = []
+    for video_id in ids:
+        video_path = None
+        for ext in ['.mp4', '.mov']:
+            potential_path = os.path.join(dir, f"{video_id}{ext}")
+            if os.path.exists(potential_path):
+                video_path = potential_path
+                break
+        
+        if video_path and os.path.exists(video_path):
+            video_args.append((video_path, os.path.join(output_base_dir, video_id)))
+        else:
+            logger.warning(f"Video file not found for ID: {video_id}, tried extensions: .mp4, .mov")
+    
+    if video_args:
+        logger.info(f"Processing {len(video_args)} videos")
+        pool = multiprocessing.Pool(processes=24)
+        pool.map(extract_all_frames, video_args)
+        pool.close()
+        pool.join()
+    else:
+        logger.warning("No valid video files found to process")
 
 def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VTT', label='real', mode='test', len_load=None):
     assert os.path.exists(data_path), f"Data path {data_path} does not exist"
@@ -167,7 +183,9 @@ def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VT
     assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
     with open(video_ids_txt, "r") as f:
         video_ids = [line.strip() for line in f if line.strip()]
-    video_ids = [vid for vid in video_ids if vid.endswith('.mp4')]
+
+    video_ids = [vid for vid in video_ids if vid.endswith(('.mp4', '.mov'))]
+    
     if len_load is not None:
         video_ids = video_ids[:len_load]
     video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]

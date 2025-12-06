@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, VAE
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50
 from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
@@ -62,6 +62,12 @@ def test(cfg: DictConfig):
         generation_models = MYVIDEOS
     elif cfg.data.dataset_name == "myvideos_compressed":
         generation_models = MYVIDEOS_COMPRESSED
+    elif cfg.data.dataset_name == "myvideos_cropped":
+        generation_models = MYVIDEOS_CROPPED
+    elif cfg.data.dataset_name == "test100":
+        generation_models = TEST100
+    elif cfg.data.dataset_name == "test50":
+        generation_models = TEST50
     
     load_len = cfg.data.test_load_len
     
@@ -70,19 +76,20 @@ def test(cfg: DictConfig):
     for fake_model in generation_models["fake"]["test"]:
         if fake_model == "Sora":
             test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=56
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
+                sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
             )
         else:
             test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, 
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, load_len=load_len
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
+                sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
             )
         test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
         test_dataloaders[f"{fake_model}"] = test_loader
     # additionally test on composite dataset
     composite_dataset = get_composite_video_dataset(
-        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model, processor=model.processor
+        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model,
+        sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
         )
     composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # endregion

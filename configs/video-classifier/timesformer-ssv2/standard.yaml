@@ -43,6 +43,7 @@ data:
   vae_model: 'Wan2.2'
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
+  no_resize: False
   
 task_type: standard # standard / unbalance
 debug: False

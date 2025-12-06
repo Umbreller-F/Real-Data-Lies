@@ -140,7 +140,7 @@ def get_all_generation_models(dataset_name):
     ]
 
 def get_label_from_generation_model(generation_model):
-    if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG"]:
+    if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG", "Youku", "vsr"]:
         return "real"
     else:
         return "fake"

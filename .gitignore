@@ -189,4 +189,4 @@ Wan2.2_VAE.pth
 .msc
 *.json
 *.pt
-# split_new/
+*.png

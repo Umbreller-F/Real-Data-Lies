@@ -66,7 +66,8 @@ def main(cfg: DictConfig):
         vae, recon_prop = None, None
     train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
                                       mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                      sample_strategy=cfg.data.sample_strategy, vae=vae, recon_prop=recon_prop)
+                                      sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                      vae=vae, recon_prop=recon_prop)
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # val data
     val_dataloaders = {}
@@ -74,7 +75,8 @@ def main(cfg: DictConfig):
     fake_model = generation_models["fake"]["val"][0]
     val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
                                     processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
-                                    sample_strategy=cfg.data.sample_strategy, vae=vae, recon_prop=recon_prop)
+                                    sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop)
     val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion

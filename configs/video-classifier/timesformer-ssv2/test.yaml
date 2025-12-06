@@ -42,6 +42,7 @@ data:
   vae_model: 'Wan2.2'
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
+  no_resize: False
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"

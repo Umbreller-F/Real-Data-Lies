@@ -88,6 +88,52 @@ MYVIDEOS_COMPRESSED = {
     },
 }
 
+MYVIDEOS_CROPPED = {
+    "real": {
+        "test":  ["MSR-VTT"]
+    },
+    "fake": {
+        "test":  [
+            # 'AnimateDiff', 
+            # 'CogVideoX', 
+            # 'FramePack', 
+            # 'HunyuanVideo', 
+            # 'MAGI-1', 
+            'sora2', 
+            'Kling',
+            'Ray3',
+            'Hailuo02',
+            # 'Wan2.1'
+        ]
+    },
+}
+
+TEST100 = {
+    "real": {
+        # "test":  ["MSR-VTT"]
+        # "test":  ["Youku"]
+        "test":  ["vsr"]
+    },
+    "fake": {
+        "test":  [
+            'Hailuo',
+            'PixVerse'
+        ]
+    },
+}
+
+TEST50 = {
+    "real": {
+        "test":  ["vsr"]
+    },
+    "fake": {
+        "test":  [
+            'Hailuo',
+            'PixVerse'
+        ]
+    },
+}
+
 VAE = {
     "real": {
         "test":  ["MSR-VTT"]
