@@ -15,7 +15,7 @@ from glob import glob
 ROOT_DIR = "../Data/GenVideo/video_frames" 
 
 # 权重文件路径 (请修改为你本地的实际路径)
-WEIGHT_PATH = "data_analysis/improved-aesthetic-predictor/sac+logos+ava1-l14-linearMSE.pth"
+WEIGHT_PATH = "data_analysis/sac+logos+ava1-l14-linearMSE.pth"
 
 # 抽帧间隔 (每隔多少帧计算一次，设为 1 则计算所有帧，设为 5 则每5帧算一次，推荐 5-10 以节省时间)
 FRAME_INTERVAL = 4
