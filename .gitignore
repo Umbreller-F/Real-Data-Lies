@@ -190,4 +190,4 @@ Wan2.2_VAE.pth
 *.json
 *.pt
 *.png
-data_analysis/improved-aesthetic-predictor/
+*.pth

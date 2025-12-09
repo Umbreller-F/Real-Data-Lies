@@ -74,5 +74,5 @@ x_max = max(df2_sorted['Aesthetic_Mean']) + df2_sorted['Aesthetic_Std'].max() + 
 plt.xlim(left=3.0, right=x_max)
 
 plt.tight_layout()
-plt.savefig('./data_analysis/aesthetic_scores_with_exclusion.png', dpi=300, bbox_inches='tight')
+plt.savefig('./data_analysis/results/aesthetic_scores_with_exclusion.png', dpi=300, bbox_inches='tight')
 # plt.show()
