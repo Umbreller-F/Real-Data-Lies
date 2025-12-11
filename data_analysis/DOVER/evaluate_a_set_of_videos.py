@@ -136,10 +136,10 @@ if __name__ == "__main__":
         # ) as wf:
         # pkl.dump(all_results, wf)
         
-        with open("zero_shot_res_sensehdr.txt","a") as wf:
-            wf.write(f'{data["name"][0].split("/")[-1]},{rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n')
+        # with open("zero_shot_res_sensehdr.txt","a") as wf:
+        #     wf.write(f'{data["name"][0].split("/")[-1]},{rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n')
 
-        with open(args.output_result_csv, "a") as w:
+        with open(args.output_result_csv, "w") as w:
             w.write(
                 f'{data["name"][0]}, {rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n'
             )

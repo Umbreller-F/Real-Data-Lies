@@ -118,7 +118,7 @@ def calculate_averages(output_path):
     
     # Save to CSV file
     summary_csv = output_path / "VQA/vqa_scores_summary.csv"
-    summary_df.to_csv(summary_csv, index=False, float_format='%.3f')
+    # summary_df.to_csv(summary_csv, index=False, float_format='%.3f')
     
     print(f"\n{'='*60}")
     print(f"Statistics completed! Results saved to: {summary_csv}")
@@ -206,7 +206,7 @@ def main():
     print(f"Results saved to: {output_path.absolute()}/VQA/")
     
     # Calculate average scores
-    calculate_averages(output_path)
+    # calculate_averages(output_path)
 
 if __name__ == "__main__":
     main()

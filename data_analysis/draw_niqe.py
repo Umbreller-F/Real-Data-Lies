@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-df2 = pd.read_csv('./data_analysis/GenVideo_quality_report.csv')
+df2 = pd.read_csv('./data_analysis/results/GenVideo_quality_report.csv')
 df2.columns = df2.columns.str.strip()
 df2['Model'] = df2['Model'].str.strip()
 
@@ -30,14 +30,14 @@ bars = plt.barh(y_pos, df2_sorted['NIQE_Mean'],
                 edgecolor=['darkred' if c=='#e74c3c' else 'darkblue' for c in colors], 
                 linewidth=1)
 
-plt.xlabel('NIQE Score (higher is better)', fontsize=12)
+plt.xlabel('NIQE Score (lower is better)', fontsize=12)
 plt.ylabel('Model', fontsize=12)
 plt.title('NIQE Scores by Model', 
           fontsize=14, fontweight='bold', pad=20)
 
 # 显示模型名字
 plt.yticks(y_pos, df2_sorted['Model'], fontsize=10)
-plt.gca().invert_yaxis()  # 让最高的在最上面
+# plt.gca().invert_yaxis()  # 让最高的在最上面
 
 # 只在条末端显示分数
 for i, (bar, mean_val) in enumerate(zip(bars, df2_sorted['NIQE_Mean'])):
@@ -74,5 +74,5 @@ x_max = max(df2_sorted['NIQE_Mean']) + df2_sorted['NIQE_Std'].max() + 0.3
 plt.xlim(left=3.0, right=x_max)
 
 plt.tight_layout()
-plt.savefig('./data_analysis/NIQE_scores_with_exclusion.png', dpi=300, bbox_inches='tight')
+plt.savefig('./data_analysis/results/histograms/NIQE_scores.png', dpi=300, bbox_inches='tight')
 # plt.show()

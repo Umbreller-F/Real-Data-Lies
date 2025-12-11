@@ -175,11 +175,11 @@ cython_debug/
 
 # Experiments results
 outputs/
-results/
+/results/
 exp_results/
 test/
 Baselines/
-split/
+# split/
 nohup_logs/
 *.csv
 *.sh

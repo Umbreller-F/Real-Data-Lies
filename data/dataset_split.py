@@ -145,3 +145,27 @@ VAE = {
         ]
     },
 }
+
+GENVIDEO_PIKA = {
+    "real": {
+        "train": ["LSVQ"],
+        "val":   ["LSVQ"],
+        "test":  ["LSVQ"]
+    },
+    "fake": {
+        "train": ["Pika"],
+        "val":   ["Pika"],
+        "test":  [
+            "ModelScope", 
+            "MorphStudio",  
+            "MoonValley", 
+            "HotShot",
+            "Show_1",
+            "Gen2", 
+            "Crafter",
+            "Lavie", 
+            "Sora", 
+            "WildScrape"
+        ]
+    },
+}
