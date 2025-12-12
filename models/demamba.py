@@ -35,7 +35,7 @@ class XCLIP_DeMamba(nn.Module):
     ):
         super(XCLIP_DeMamba, self).__init__()
         # self.encoder = XCLIPVisionModel.from_pretrained("GenVideo/pretrained_weights/xclip")
-        self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16")
+        self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
         blocks = []
         channel = 768
         self.fusing_ratios = 1

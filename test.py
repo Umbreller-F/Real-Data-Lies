@@ -1,8 +1,9 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50, REALDIST_PIKA, GENVIDEO_Y_PIKA
 from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
+from models.demamba import XCLIP_DeMamba
 from utils.train_utils import *
 from torch.utils.data import DataLoader
 from loguru import logger
@@ -32,6 +33,8 @@ def test(cfg: DictConfig):
     logger.info(f"Loading model: {cfg.model.name}")
     if 'timesformer' in cfg.model.name:
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+    elif cfg.model.name == "DeMamba":
+        model = XCLIP_DeMamba()
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
@@ -58,40 +61,46 @@ def test(cfg: DictConfig):
             generation_models = GENVIDEO_PIKA
         elif cfg.data.generation_model == "SEINE":
             generation_models = GENVIDEO_SEINE
-    elif cfg.data.dataset_name == "myvideos":
-        generation_models = MYVIDEOS
-    elif cfg.data.dataset_name == "myvideos_compressed":
-        generation_models = MYVIDEOS_COMPRESSED
-    elif cfg.data.dataset_name == "myvideos_cropped":
-        generation_models = MYVIDEOS_CROPPED
-    elif cfg.data.dataset_name == "test100":
-        generation_models = TEST100
-    elif cfg.data.dataset_name == "test50":
-        generation_models = TEST50
+    elif cfg.data.dataset_name == "GenVideo-Youku":
+        if cfg.data.generation_model == "Pika":
+            generation_models = GENVIDEO_Y_PIKA
+    elif cfg.data.dataset_name == "RealDist":
+        if cfg.data.generation_model == "Pika":
+            generation_models = REALDIST_PIKA
+    # elif cfg.data.dataset_name == "myvideos":
+    #     generation_models = MYVIDEOS
+    # elif cfg.data.dataset_name == "myvideos_compressed":
+    #     generation_models = MYVIDEOS_COMPRESSED
+    # elif cfg.data.dataset_name == "myvideos_cropped":
+    #     generation_models = MYVIDEOS_CROPPED
+    # elif cfg.data.dataset_name == "test100":
+    #     generation_models = TEST100
+    # elif cfg.data.dataset_name == "test50":
+    #     generation_models = TEST50
     
     load_len = cfg.data.test_load_len
     
     test_dataloaders = {}
-    real_model = generation_models["real"]["test"][0]
-    for fake_model in generation_models["fake"]["test"]:
-        if fake_model == "Sora":
-            test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-            )
-        else:
-            test_dataset = get_video_dataset(
-                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
-                sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-            )
-        test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
-        test_dataloaders[f"{fake_model}"] = test_loader
-    # additionally test on composite dataset
+    for real_model in generation_models["real"]["test"]:
+        for fake_model in generation_models["fake"]["test"]:
+            if fake_model == "Sora":
+                test_dataset = get_video_dataset(
+                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
+                    sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+                )
+            else:
+                test_dataset = get_video_dataset(
+                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
+                    sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+                )
+            test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+            test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
+    '''# additionally test on composite dataset
     composite_dataset = get_composite_video_dataset(
         cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model,
         sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
         )
-    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)'''
     # endregion
 
     # region Evaluate Model
@@ -118,44 +127,47 @@ def test(cfg: DictConfig):
         )
 
     headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "FakeACC", "RealACC", "AUROC"]
-    # Calculate mean of all metrics
-    mean_metrics = ["Avg."]
-    for i in range(1, len(headers)):
-        mean_metrics.append(sum(result[i] for result in results) / len(results))
-    results.append(mean_metrics)
+    # Group results by real_model
+    grouped_results = {}
+    for row in results:
+        dataset_name = row[0]
+        if '-' in dataset_name:
+            real_model = dataset_name.split('-')[0]
+            if real_model not in grouped_results:
+                grouped_results[real_model] = []
+            grouped_results[real_model].append(row)
+    # Build final table with averages and separators
+    final_results = []
+    final_csv = []
 
-    # additionally evaluate on composite dataset
-    logger.info("Evaluating on composite dataset...")
-    test_results = test_on_dataloader(
-        model, composite_loader, device
-    )
-    results.append([
-        "Composite", 
-        test_results["precision"], 
-        test_results["recall"], 
-        test_results["accuracy"], 
-        test_results["f1"],
-        test_results["positive_accuracy"],
-        test_results["negative_accuracy"],
-        test_results["auroc"],
-    ])
-    tqdm.write(
-        f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
-        f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
-        f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
-    )
+    for real_model, model_results in grouped_results.items():
+        # Add individual results
+        final_results.extend(model_results)
+        final_csv.extend(model_results)
+        
+        # Calculate average for this real_model
+        if len(model_results) > 1:
+            avg_row = [f"{real_model}-Avg"]
+            for i in range(1, len(headers)):
+                avg_value = sum(r[i] for r in model_results) / len(model_results)
+                avg_row.append(avg_value)
+            final_results.append(avg_row)
+            final_csv.append(avg_row)
+        
+        # Add separator (except after last group)
+        if real_model != list(grouped_results.keys())[-1]:
+            final_csv.append(["-" * 4] * len(headers))
     
     csv_path = os.path.join(log_dir, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     # Save results to CSV with four decimal places
-    df = pd.DataFrame(results, columns=headers)
+    df = pd.DataFrame(final_csv, columns=headers)
     df = df.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
-    df = df.transpose()  # Transpose the table
-    df.to_csv(csv_path, index=True, header=False)
+    df.to_csv(csv_path, index=False, header=True)
     logger.success(f"Test results saved to {csv_path}")
 
     # Print results in table format
-    logger.info("\n" + tabulate(results, headers=headers, tablefmt="grid"))
+    logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))
     # endregion
 
 # region Testing Function

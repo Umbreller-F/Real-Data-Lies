@@ -2,7 +2,10 @@ GENVIDEO_PIKA = {
     "real": {
         "train": ["Kinetics-400"],
         "val":   ["Kinetics-400"],
-        "test":  ["MSR-VTT"]
+        "test":  [
+            "MSR-VTT",
+            "Youku"
+        ]
     },
     "fake": {
         "train": ["Pika"],
@@ -146,11 +149,46 @@ VAE = {
     },
 }
 
-GENVIDEO_PIKA = {
+# real data distribution
+REALDIST_PIKA = {
     "real": {
         "train": ["LSVQ"],
         "val":   ["LSVQ"],
-        "test":  ["LSVQ"]
+        "test":  [
+            "LSVQ",
+            "LSVQ_1080p",
+            "RealVSR",
+            "MSR-VTT",
+            "Youku",
+            "Kinetics-400"
+        ]
+    },
+    "fake": {
+        "train": ["Pika"],
+        "val":   ["Pika"],
+        "test":  [
+            "ModelScope", 
+            "MorphStudio",  
+            "MoonValley", 
+            "HotShot",
+            "Show_1",
+            "Gen2", 
+            "Crafter",
+            "Lavie", 
+            "Sora", 
+            "WildScrape"
+        ]
+    },
+}
+
+GENVIDEO_Y_PIKA = {
+    "real": {
+        "train": ["Youku"],
+        "val":   ["Youku"],
+        "test":  [
+            "MSR-VTT",
+            "Kinetics-400"
+        ]
     },
     "fake": {
         "train": ["Pika"],

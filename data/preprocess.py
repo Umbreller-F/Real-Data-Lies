@@ -177,7 +177,7 @@ def process_video_in_parallel(dir, ids, output_base_dir):
     else:
         logger.warning("No valid video files found to process")
 
-def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VTT', label='real', mode='test', len_load=None):
+def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VTT', label='real', mode='test'):
     assert os.path.exists(data_path), f"Data path {data_path} does not exist"
     video_ids_txt = os.path.join(data_path, "split", label, generation_model, f"{mode}_ids.txt")
     assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
@@ -186,8 +186,6 @@ def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VT
 
     video_ids = [vid for vid in video_ids if vid.endswith(('.mp4', '.mov'))]
     
-    if len_load is not None:
-        video_ids = video_ids[:len_load]
     video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
     logger.info(f"len of video_ids is {len(video_ids)}")
     video_dir = os.path.join(data_path, "video", label, generation_model)
@@ -199,6 +197,7 @@ def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VT
     if len(unproceesed_ids) > 0:
         process_video_in_parallel(video_dir, unproceesed_ids, frame_dir)
 # endregion
+
 
 if __name__ == "__main__":
     logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")

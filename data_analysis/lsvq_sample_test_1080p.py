@@ -89,32 +89,32 @@ def stratified_sampling_simple(input_file, output_file, n_samples=10000, n_strat
 # Main execution
 if __name__ == "__main__":
     # Configuration
-    INPUT_FILE = "data_analysis/DOVER/examplar_data_labels/train_labels.txt"
-    OUTPUT_FILE = "data_analysis/results/LSVQ-statistics/sampled_train_data.txt"
-    SAMPLE_COUNT = 10000
+    SAMPLE_COUNT = 1000
     STRATA_COUNT = 20
-    RANDOM_SEED = 42
-    
+    RANDOM_SEED = 1958
+    lsvq_parts = ['1080p', 'test']
     print(f"Stratified Sampling for Quality Score Distribution")
-    print(f"{'='*50}")
-    print(f"Input file: {INPUT_FILE}")
-    print(f"Output file: {OUTPUT_FILE}")
-    print(f"Target samples: {SAMPLE_COUNT}")
-    print(f"Number of strata: {STRATA_COUNT}")
-    print(f"Random seed: {RANDOM_SEED}")
-    print(f"{'='*50}\n")
-    
-    # Choose which version to use
-    # Version 1: Simple and reliable
-    result = stratified_sampling_simple(
-        input_file=INPUT_FILE,
-        output_file=OUTPUT_FILE,
-        n_samples=SAMPLE_COUNT,
-        n_strata=STRATA_COUNT,
-        random_seed=RANDOM_SEED
-    )
-    
-    print(f"\n{'='*50}")
-    print(f"Sampling completed successfully!")
-    print(f"To reproduce exactly, use random_seed={RANDOM_SEED}")
-    print(f"Output saved to: {OUTPUT_FILE}")
+    for part in lsvq_parts:
+        INPUT_FILE = f"data_analysis/LSVQ_labels/labels_{part}.txt"
+        OUTPUT_FILE = f"data_analysis/LSVQ_labels/realdist_{part}.txt"
+        
+        print(f"\n{'='*50}")
+        print(f"Input file: {INPUT_FILE}")
+        print(f"Output file: {OUTPUT_FILE}")
+        print(f"Target samples: {SAMPLE_COUNT}")
+        print(f"Number of strata: {STRATA_COUNT}")
+        print(f"Random seed: {RANDOM_SEED}")
+        print(f"{'='*50}\n")
+        
+        result = stratified_sampling_simple(
+            input_file=INPUT_FILE,
+            output_file=OUTPUT_FILE,
+            n_samples=SAMPLE_COUNT,
+            n_strata=STRATA_COUNT,
+            random_seed=RANDOM_SEED
+        )
+        
+        print(f"\n{'='*50}")
+        print(f"Sampling completed successfully!")
+        print(f"To reproduce exactly, use random_seed={RANDOM_SEED}")
+        print(f"Output saved to: {OUTPUT_FILE}")

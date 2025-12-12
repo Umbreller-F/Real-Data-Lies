@@ -407,37 +407,23 @@ def simple_score_stats(file_path):
 # Main execution
 if __name__ == "__main__":
     # Set your file path here
-    file_path = "data_analysis/DOVER/examplar_data_labels/train_labels.txt"  # Change this to your actual file path
-    save_path = "data_analysis/results/LSVQ-statistics"
-    
-    # Check if file exists
-    if not os.path.exists(file_path):
-        print(f"Error: File '{file_path}' not found!")
+    txt_files = ['labels_1080p.txt', 'labels_test.txt', 'labels.txt', 'train_labels.txt', 'realdist_1080p.txt', 'realdist_test.txt', 'realdist_train.txt', 'realdist_val.txt']
+    for txt_file in txt_files:
+        file_path = f"data_analysis/LSVQ_labels/{txt_file}"  # Change this to your actual file path
+        save_path = "data_analysis/results/LSVQ-statistics"
         
-        # Try to find files in current directory
-        import glob
-        txt_files = glob.glob("*.txt")
+        print("=" * 60)
+        print("SCORE DISTRIBUTION ANALYZER")
+        print("=" * 60)
+        print(f"Analyzing file: {file_path}")
+        print(f"File size: {os.path.getsize(file_path)} bytes")
         
-        if txt_files:
-            print(f"Found text files in current directory: {txt_files}")
-            file_path = txt_files[0]
-            print(f"Using first found file: {file_path}")
-        else:
-            print("No text files found. Please specify the correct file path.")
-            exit(1)
-    
-    print("=" * 60)
-    print("SCORE DISTRIBUTION ANALYZER")
-    print("=" * 60)
-    print(f"Analyzing file: {file_path}")
-    print(f"File size: {os.path.getsize(file_path)} bytes")
-    
-    # Run complete analysis
-    analyze_score_distribution(file_path, save_path, bins=10, output_chart=True)
-    
-    # Run simple statistics
-    simple_score_stats(file_path)
-    
-    print("\n" + "=" * 60)
+        # Run complete analysis
+        analyze_score_distribution(file_path, save_path, bins=10, output_chart=True)
+        
+        # Run simple statistics
+        simple_score_stats(file_path)
+        
+        print("\n" + "=" * 60)
     print("ANALYSIS COMPLETE")
     print("=" * 60)

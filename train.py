@@ -1,9 +1,10 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA
 from data.video_dataset import get_video_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
+from models.demamba import XCLIP_DeMamba
 from loguru import logger
 from tqdm import tqdm
 from tabulate import tabulate
@@ -35,6 +36,8 @@ def main(cfg: DictConfig):
     # region Model
     if 'timesformer' in cfg.model.name:
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+    elif cfg.model.name == "DeMamba":
+        model = XCLIP_DeMamba()
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
@@ -52,6 +55,12 @@ def main(cfg: DictConfig):
             generation_models = GENVIDEO_PIKA
         elif cfg.data.generation_model == "SEINE":
             generation_models = GENVIDEO_SEINE
+    elif cfg.data.dataset_name == "GenVideo-Youku":
+        if cfg.data.generation_model == "Pika":
+            generation_models = GENVIDEO_Y_PIKA
+    elif cfg.data.dataset_name == "RealDist":
+        if cfg.data.generation_model == "Pika":
+            generation_models = REALDIST_PIKA
     else:
         raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
     pn_ratio = 1
@@ -140,10 +149,10 @@ def main(cfg: DictConfig):
                 if no_improvement_count >= early_stop_patience:
                     logger.info(f"Validation metric hasn't improved for {early_stop_patience} consecutive epochs, stop training early.")
                     break
-                current_train_loss = train_results.get("train_loss", float('inf'))
-                if current_train_loss == 0:
-                    logger.info(f"Model has perfectly converged: loss={current_train_loss:.4f}, stop training early.")
-                    break
+            current_train_loss = float(train_results["train_loss"])
+            if current_train_loss == 0:
+                logger.info(f"Model has perfectly converged: loss={current_train_loss:.4f}, stop training early.")
+                break
                 
             epoch_pbar.set_postfix({
                 **train_results,

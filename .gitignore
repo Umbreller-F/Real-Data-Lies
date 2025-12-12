@@ -191,3 +191,4 @@ Wan2.2_VAE.pth
 *.pt
 *.png
 *.pth
+tmp*
