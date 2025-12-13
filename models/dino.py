@@ -61,6 +61,8 @@ class DINOv2WithLinearProbe(nn.Module):
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
+        
+        self.processor = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         predictions = self.backbone(x)
@@ -131,6 +133,8 @@ class DINOv3WithLinearProbe(nn.Module):
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
+
+        self.processor = None
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         predictions = self.backbone(x)

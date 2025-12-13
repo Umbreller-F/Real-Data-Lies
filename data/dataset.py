@@ -12,87 +12,6 @@ import warnings
 warnings.filterwarnings("ignore", message="Creating a tensor from a list of numpy.ndarrays is extremely slow")
 warnings.filterwarnings("ignore", message="`resume_download` is deprecated", category=FutureWarning)
 
-class VideoTensorDataset(Dataset):
-    def __init__(
-        self,
-        data_path:str,
-        dataset_name:str="GenVideo",
-        generation_model:str="None",
-        verbose:bool=False,
-        mode:str="train",
-        num_frames: int=8,
-        transform: Optional[Callable] = None,
-        load_len: int=None,
-        input_shape: tuple=(224, 224)):
-        super().__init__()
-        self.data_path = data_path
-        self.dataset_name = dataset_name
-        self.generation_model = generation_model
-        self.verbose = verbose
-        self.mode = mode
-        self.num_frames = num_frames
-        self.input_shape = input_shape
-        self.transform = transforms.Compose([
-                            transforms.Resize(input_shape),
-                            transforms.ToTensor(),
-                            transforms.Normalize(
-                            mean=[0.485, 0.456, 0.406],  # Mean of ImageNet
-                            std=[0.229, 0.224, 0.225]),    # Std of ImageNet
-                            ])
-        
-        generation_models = get_all_generation_models(self.dataset_name)
-        self.label = get_label_from_generation_model(self.generation_model)
-        
-        # different generation AI models, e.g., sora, zeroscope, ...
-        assert self.generation_model in generation_models, f"generation model {self.generation_model} is not supported in {self.dataset_name} dataset"
-        
-        # data_dir
-        self.base_dir = os.path.join(
-            self.data_path, 'video_frames', self.label, self.generation_model, self.mode
-        )
-
-        # all videos path
-        self.video_dirs = sorted(
-            [os.path.join(self.base_dir, d) for d in os.listdir(self.base_dir)],
-            key=lambda x: os.path.basename(x)  # sort by video number
-        )
-
-        # all video frames path
-        self.video_frame_paths = []
-        for video_dir in self.video_dirs:
-            # Check if the directory exists and contains .jpg files
-            if os.path.isdir(video_dir):
-                frames = sorted(
-                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg')],
-                    key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
-                )
-                # Only add the frames list if it is not empty
-                if len(frames) == self.num_frames:
-                    self.video_frame_paths.append(frames)
-        if load_len is not None:
-            self.video_frame_paths = self.video_frame_paths[:load_len]
-        logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} videos / {self.generation_model}]")
-            
-    def __len__(self) -> int:
-        return len(self.video_frame_paths)
-
-    def __getitem__(self, idx: int) -> np.ndarray:
-        frame_paths = self.video_frame_paths[idx]
-        
-        video_data = []
-        for frame_path in frame_paths:
-            img = Image.open(frame_path).convert('RGB')
-            
-            if self.transform:
-                img = self.transform(img)
-            
-            # convert (H, W, C) to (C, H, W)
-            img_array = np.asarray(img)
-            video_data.append(img_array)
-        
-        # merge frames to video
-        return np.stack(video_data, axis=0), np.array([0 if self.label=="real" else 1], dtype=np.float32)
-
 
 class ImageDataset(Dataset):
     def __init__(self, data_path:str, dataset_name:str="GenVideo", generation_model:str="None", frame_sample_rate: int = 4,
@@ -124,7 +43,7 @@ class ImageDataset(Dataset):
         )
         # limit dataset size
         if load_len is not None:
-            logger.info(f"Limiting dataset from {len(self.video_dirs)} to {load_len} videos.")
+            # logger.info(f"Limiting dataset from {len(self.video_dirs)} to {load_len} videos.")
             self.video_dirs = self.video_dirs[:load_len]
         # all video frames path
         self.image_paths = []
@@ -158,7 +77,7 @@ class ImageDataset(Dataset):
                     max_sample_rate = max(1, (len(frames) - 1) // (self.num_frames - 1))
                     sampled_frames = frames[::max_sample_rate][:self.num_frames]
                 self.image_paths.extend(sampled_frames)
-        logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} videos / {self.generation_model}]")
+        logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} images / {len(self.video_dirs)} videos / {self.generation_model}]")
             
     def __len__(self) -> int:
         return len(self.image_paths)
@@ -324,7 +243,7 @@ class VideoDataset(Dataset):
             return video, label, video_id
 
 
-def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, frame_sample_rate=4, no_resize=False,
+def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, frame_sample_rate=4, no_resize=False,
                       generation_model=None, real_model=None, pn_ratio=1, sample_strategy='fixed_interval'):
     """
     Load and concatenate video datasets for fake and real videos.
@@ -426,7 +345,27 @@ def get_video_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_
                 input_shape=tuple(data_cfg.input_shape),
                 )
     elif feature_type == "image":
-        pass
+        fake_dataset = ImageDataset(
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=generation_model,
+            frame_sample_rate=frame_sample_rate,
+            mode=mode, 
+            num_frames=8,
+            load_len=load_len,
+            input_shape=tuple(data_cfg.input_shape),
+            )
+        real_len = int(load_len / pn_ratio) if load_len else None
+        real_dataset = ImageDataset(
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=real_model,
+            frame_sample_rate=frame_sample_rate,
+            mode=mode, 
+            num_frames=8,
+            load_len=real_len,
+            input_shape=tuple(data_cfg.input_shape),
+            )
     else:
         raise NotImplementedError(f"Feature type {feature_type} is not supported.")
     return ConcatDataset([fake_dataset, real_dataset])
@@ -470,7 +409,7 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
 
 
 if __name__ == "__main__":
-    # use python -m data.video_dataset to test
+    # use python -m data.dataset to test
     logger.debug("This module is not meant to be run directly. Import it in your code to use the functions and classes defined here.")
     from omegaconf import OmegaConf
     from transformers import AutoImageProcessor
@@ -499,9 +438,6 @@ if __name__ == "__main__":
             'no_resize': True
         }
     })
-
-    # logger.debug("Testing VideoTensorDataset...")
-    # dataset = VideoTensorDataset(data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
 
     # logger.debug("Testing VideoDataset...")
     # demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 

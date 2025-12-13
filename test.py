@@ -1,9 +1,11 @@
 from utils.experiment_utils import set_seed
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50, REALDIST_PIKA, GENVIDEO_Y_PIKA
-from data.video_dataset import get_video_dataset, get_composite_video_dataset
+# from data.video_dataset import get_video_dataset, get_composite_video_dataset
+from data.dataset import get_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
 from models.demamba import XCLIP_DeMamba
+from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from utils.train_utils import *
 from torch.utils.data import DataLoader
 from loguru import logger
@@ -23,7 +25,7 @@ def test(cfg: DictConfig):
     log_dir = os.path.join(cfg.log_path, cfg.experiment_name)
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{cfg.data.dataset_name}.log")
-    logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
+    logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip", mode='w')
     logger.info('Testing configuration:\n' + OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
@@ -35,6 +37,10 @@ def test(cfg: DictConfig):
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
+    elif cfg.model.name == "DINOv2":
+        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "DINOv3":
+        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
@@ -84,12 +90,12 @@ def test(cfg: DictConfig):
     for real_model in generation_models["real"]["test"]:
         for fake_model in generation_models["fake"]["test"]:
             if fake_model == "Sora":
-                test_dataset = get_video_dataset(
+                test_dataset = get_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
                     sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
                 )
             else:
-                test_dataset = get_video_dataset(
+                test_dataset = get_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
                     sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
                 )
@@ -139,6 +145,7 @@ def test(cfg: DictConfig):
     # Build final table with averages and separators
     final_results = []
     final_csv = []
+    avg_csv = []
 
     for real_model, model_results in grouped_results.items():
         # Add individual results
@@ -153,6 +160,7 @@ def test(cfg: DictConfig):
                 avg_row.append(avg_value)
             final_results.append(avg_row)
             final_csv.append(avg_row)
+            avg_csv.append(avg_row)
         
         # Add separator (except after last group)
         if real_model != list(grouped_results.keys())[-1]:
@@ -160,11 +168,17 @@ def test(cfg: DictConfig):
     
     csv_path = os.path.join(log_dir, f"{cfg.save_csv_file}")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    # Save results to CSV with four decimal places
+    # Save all detailed results to CSV with four decimal places
     df = pd.DataFrame(final_csv, columns=headers)
     df = df.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
     df.to_csv(csv_path, index=False, header=True)
-    logger.success(f"Test results saved to {csv_path}")
+    logger.success(f"Test all detailed results saved to {csv_path}.")
+    # Save average values to avg_path
+    avg_path = csv_path.replace(".csv", "-avg.csv")
+    df_avg = pd.DataFrame(avg_csv, columns=headers)
+    df_avg = df_avg.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
+    df_avg.to_csv(avg_path, index=False, header=True)
+    logger.success(f"Test average results saved to {avg_path}.")
 
     # Print results in table format
     logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))

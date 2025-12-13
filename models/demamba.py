@@ -47,6 +47,7 @@ class XCLIP_DeMamba(nn.Module):
         self.fc_norm2 = nn.LayerNorm(768)
         self.initialize_weights(self.fc1)
         self.dropout = nn.Dropout(p=0.0)
+        self.processor = None
 
     def initialize_weights(self, module):
         for m in module.modules():
@@ -168,3 +169,4 @@ if __name__ == '__main__':
     tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
     output = model(tensor)
     print(output.shape)
+    print(model.processor)

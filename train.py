@@ -1,10 +1,12 @@
 from utils.experiment_utils import set_seed
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA
-from data.video_dataset import get_video_dataset
+# from data.video_dataset import get_video_dataset
+from data.dataset import get_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
 from models.demamba import XCLIP_DeMamba
+from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from loguru import logger
 from tqdm import tqdm
 from tabulate import tabulate
@@ -38,6 +40,10 @@ def main(cfg: DictConfig):
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
+    elif cfg.model.name == "DINOv2":
+        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "DINOv3":
+        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
@@ -73,19 +79,19 @@ def main(cfg: DictConfig):
         vae = cfg.data.vae_model
     else:
         vae, recon_prop = None, None
-    train_dataset = get_video_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
-                                      mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                      sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
-                                      vae=vae, recon_prop=recon_prop)
+    train_dataset = get_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
+                                mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
+                                sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                vae=vae, recon_prop=recon_prop)
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # val data
     val_dataloaders = {}
     real_model = generation_models["real"]["val"][0]
     fake_model = generation_models["fake"]["val"][0]
-    val_dataset = get_video_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
-                                    processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
-                                    sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
-                                    vae=vae, recon_prop=recon_prop)
+    val_dataset = get_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+                              processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
+                              sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                              vae=vae, recon_prop=recon_prop)
     val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion

@@ -148,7 +148,7 @@ if __name__ == "__main__":
     # python -m data.image_dataset
     from omegaconf import OmegaConf
     print("Testing ImageDataset...")
-    dataset = ImageDataset(data_path="/home/ziyuanfang/Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
+    dataset = ImageDataset(data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Sora", mode="test", input_shape=(224,224))
     print(dataset[0][0].shape)
     print(dataset[0][1])
     print(len(dataset))
@@ -162,7 +162,7 @@ if __name__ == "__main__":
             'feature_type': 'image',
             'dataset_name': "GenVideo",
             'num_workers': 16,
-            'data_path': "/home/ziyuanfang/Data/GenVideo",
+            'data_path': "../Data/GenVideo",
             'num_frames': 8,
             'generation_model': "Pika",
             'input_shape': [224,224],
