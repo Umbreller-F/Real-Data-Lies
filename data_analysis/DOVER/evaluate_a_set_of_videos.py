@@ -8,6 +8,7 @@ import decord
 import numpy as np
 import yaml
 from tqdm import tqdm
+import random
 
 from dover.datasets import (
     UnifiedFrameSampler,
@@ -32,6 +33,11 @@ def fuse_results(results: list):
         "technical": 1 / (1 + np.exp(-t)),
         "overall": 1 / (1 + np.exp(-x)),
     }
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 if __name__ == "__main__":
@@ -87,8 +93,11 @@ if __name__ == "__main__":
 
     dataset = ViewDecompositionDataset(dopt)
 
+    g = torch.Generator()
+    g.manual_seed(1958)
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=1, num_workers=opt["num_workers"], pin_memory=True,
+        worker_init_fn=seed_worker, generator=g
     )
 
     try:
@@ -139,7 +148,7 @@ if __name__ == "__main__":
         # with open("zero_shot_res_sensehdr.txt","a") as wf:
         #     wf.write(f'{data["name"][0].split("/")[-1]},{rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n')
 
-        with open(args.output_result_csv, "w") as w:
+        with open(args.output_result_csv, "a") as w:
             w.write(
                 f'{data["name"][0]}, {rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n'
             )

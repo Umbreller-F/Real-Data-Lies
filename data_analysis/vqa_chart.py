@@ -14,7 +14,7 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
     df_sorted = df.sort_values(f'{score_type}_Mean', ascending=False)
     
     # Identify real video models to be excluded
-    exclude_models = ['Kinetics-400', 'MSR-VTT', 'RealVSR', 'Youku']
+    exclude_models = ['Kinetics-400', 'MSR-VTT', 'RealVSR', 'Youku', 'LSVQ', 'LSVQ_1080p']
     df_aigv = df_sorted[~df_sorted['Model'].isin(exclude_models)]
     avg_aigv = df_aigv[f'{score_type}_Mean'].mean()
     

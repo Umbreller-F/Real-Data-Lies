@@ -116,67 +116,6 @@ def calculate_score_stats(csv_dir, output_csv="score_statistics.csv"):
     
     return results_df
 
-def calculate_score_stats_alternative_format(csv_dir, output_csv="score_stats_simple.csv"):
-    """
-    Alternative format: Model,NIQE_Mean,NIQE_Std,MUSIQ_Mean,MUSIQ_Std,Overall_Mean,Overall_Std
-    """
-    csv_dir = Path(csv_dir)
-    
-    # Get all CSV files
-    csv_files = list(csv_dir.glob("*.csv"))
-    
-    results = []
-    
-    for csv_file in csv_files:
-        try:
-            df = pd.read_csv(csv_file, header=None)
-            
-            # Skip header
-            if df.iloc[0, 0] == "path":
-                df = df.iloc[1:].reset_index(drop=True)
-            
-            # Convert to numeric
-            df[1] = pd.to_numeric(df[1], errors='coerce')
-            df[2] = pd.to_numeric(df[2], errors='coerce')
-            df[3] = pd.to_numeric(df[3], errors='coerce')
-            
-            # Clean data
-            df_clean = df.dropna(subset=[1, 2, 3])
-            
-            if len(df_clean) == 0:
-                continue
-            
-            # Calculate statistics
-            aesthetic_mean = df_clean[1].mean()
-            aesthetic_std = df_clean[1].std()
-            technical_mean = df_clean[2].mean()
-            technical_std = df_clean[2].std()
-            overall_mean = df_clean[3].mean()
-            overall_std = df_clean[3].std()
-            
-            # Alternative format
-            results.append({
-                "Model": csv_file.stem,
-                "Aesthetic_Mean": aesthetic_mean,
-                "Aesthetic_Std": aesthetic_std,
-                "Technical_Mean": technical_mean,
-                "Technical_Std": technical_std,
-                "Overall_Mean": overall_mean,
-                "Overall_Std": overall_std
-            })
-            
-        except Exception as e:
-            print(f"Error with {csv_file.name}: {e}")
-    
-    if results:
-        # Save
-        results_df = pd.DataFrame(results)
-        output_path = csv_dir / output_csv
-        results_df.to_csv(output_path, index=False)
-        print(f"Saved to: {output_path}")
-        
-        return results_df
-    return None
 
 if __name__ == "__main__":
     # Configuration

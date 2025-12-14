@@ -3,6 +3,14 @@ import random
 import shutil
 from pathlib import Path
 
+
+YOUKU_ERROR_VIDEOS = [
+    'yplug_pre_train_0441389_28_10.mp4',
+    'yplug_pre_train_0507575_18_10.mp4',
+    'yplug_pre_train_0600057_10_10.mp4',
+    'yplug_pre_train_0675177_70_10.mp4'
+]
+
 def sample_videos(source_root, target_root, num_samples=100, random_seed=42):
     """
     Randomly sample videos from each subdirectory with fixed random seed
@@ -91,14 +99,12 @@ def sample_videos(source_root, target_root, num_samples=100, random_seed=42):
             for src_file in selected_videos:
                 # Target file path
                 dst_file = target_subdir / src_file.name
-                
+                if dst_file.name in YOUKU_ERROR_VIDEOS:
+                    continue
                 # Handle duplicate filenames
-                counter = 1
-                while dst_file.exists():
-                    name_stem = src_file.stem
-                    name_suffix = src_file.suffix
-                    dst_file = target_subdir / f"{name_stem}_{counter}{name_suffix}"
-                    counter += 1
+                if dst_file.exists():
+                    print(f"    Skip {src_file.name} (already exists in target)")
+                    continue
                 
                 # Copy file
                 try:
@@ -207,7 +213,7 @@ def get_sampling_summary(summary_file):
 
 if __name__ == "__main__":
     # Configuration
-    SOURCE_DIR = "../Data/GenVideo/video"           # Directory containing 'fake' and 'real' folders
+    SOURCE_DIR = "../Data/RealDist/video"           # Directory containing 'fake' and 'real' folders
     TARGET_DIR = "../Data/VQA_videos"  # Output directory
     SAMPLE_SIZE = 100          # Number of videos to sample from each directory
     RANDOM_SEED = 1958         # Fixed random seed for reproducibility

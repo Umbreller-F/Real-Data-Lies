@@ -400,7 +400,6 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
         video_info = self.video_infos[index]
         filename = video_info["filename"]
         label = video_info["label"]
-
         try:
             ## Read Original Frames
             ## Process Frames
