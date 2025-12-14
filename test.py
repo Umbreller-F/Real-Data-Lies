@@ -99,14 +99,8 @@ def test(cfg: DictConfig):
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
                     sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
                 )
-            test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+            test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
-    '''# additionally test on composite dataset
-    composite_dataset = get_composite_video_dataset(
-        cfg.data, mode="test", generation_models=generation_models["fake"]["test"], real_model=real_model,
-        sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-        )
-    composite_loader = DataLoader(composite_dataset, batch_size=cfg.data.val_batch_size, shuffle=True, num_workers=cfg.data.num_workers)'''
     # endregion
 
     # region Evaluate Model
@@ -115,7 +109,7 @@ def test(cfg: DictConfig):
     logger.info("Starting evaluation...")
     for name, test_loader in tqdm(test_dataloaders.items(), desc="Testing", unit="dataset"):
         test_results = test_on_dataloader(
-            model, test_loader, device
+            model, test_loader, cfg.data.feature_type, device
         )
         results.append([name, 
                         test_results["precision"], 
@@ -186,14 +180,15 @@ def test(cfg: DictConfig):
 
 # region Testing Function
 @torch.no_grad()
-def test_on_dataloader(model, test_dataloader, device=torch.device('cuda')):
+def test_on_dataloader(model, test_dataloader, feature_type, device = torch.device('cuda'), frames_per_video = 8):
     model.eval()
     all_labels = []
     all_predicted = []
     all_raw_preds = []
 
     for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
-        inputs, labels, video_ids = batch
+        inputs, labels, sample_ids = batch
+        breakpoint()
         inputs, labels = inputs.float().to(device), labels.to(device)
 
         logits = model(inputs)
@@ -209,6 +204,14 @@ def test_on_dataloader(model, test_dataloader, device=torch.device('cuda')):
     all_labels = np.array(all_labels)
     all_predicted = np.array(all_predicted)
     all_raw_preds = np.array(all_raw_preds)
+    if feature_type == "video":
+        pass
+    elif feature_type == "image":
+        # Aggregate frame-level predictions to video-level predictions
+        num_videos = len(all_labels) // frames_per_video
+        all_labels = all_labels.reshape(num_videos, frames_per_video)[:, 0]
+        all_raw_preds = all_raw_preds.reshape(num_videos, frames_per_video).mean(axis=1)
+        all_predicted = all_raw_preds > 0.5
 
     # Calculate class-wise accuracy
     positive_mask = all_labels == 1
