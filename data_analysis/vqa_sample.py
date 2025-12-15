@@ -5,10 +5,52 @@ from pathlib import Path
 
 
 YOUKU_ERROR_VIDEOS = [
-    'yplug_pre_train_0441389_28_10.mp4',
-    'yplug_pre_train_0507575_18_10.mp4',
-    'yplug_pre_train_0600057_10_10.mp4',
-    'yplug_pre_train_0675177_70_10.mp4'
+    'yplug_pre_train_0011681_64_10.mp4',
+    'yplug_pre_train_0020311_7_10.mp4',
+    'yplug_pre_train_0028634_31_10.mp4',
+    'yplug_pre_train_0050722_39_10.mp4',
+    'yplug_pre_train_0052707_20_10.mp4',
+    'yplug_pre_train_0158196_41_10.mp4',
+    'yplug_pre_train_0211973_79_10.mp4',
+    'yplug_pre_train_0216787_15_10.mp4',
+    'yplug_pre_train_0223773_20_10.mp4',
+    'yplug_pre_train_0292010_6_10.mp4',
+    'yplug_pre_train_0313700_58_10.mp4',
+    'yplug_pre_train_0333341_14_10.mp4',
+    'yplug_pre_train_0342936_8_10.mp4',
+    'yplug_pre_train_0423573_29_10.mp4',
+    'yplug_pre_train_0424335_10_10.mp4',
+    'yplug_pre_train_0431461_51_10.mp4',
+    'yplug_pre_train_0489772_9_10.mp4',
+    'yplug_pre_train_0500234_8_10.mp4',
+    'yplug_pre_train_0516205_18_10.mp4',
+    'yplug_pre_train_0542137_18_10.mp4',
+    'yplug_pre_train_0572037_14_10.mp4',
+    'yplug_pre_train_0572063_6_10.mp4',
+    'yplug_pre_train_0582331_8_10.mp4',
+    'yplug_pre_train_0602021_44_10.mp4',
+    'yplug_pre_train_0610526_51_10.mp4',
+    'yplug_pre_train_0633999_7_10.mp4',
+    'yplug_pre_train_0638098_8_10.mp4',
+    'yplug_pre_train_0640661_51_10.mp4',
+    'yplug_pre_train_0656107_40_10.mp4',
+    'yplug_pre_train_0665560_92_10.mp4',
+    'yplug_pre_train_0681290_56_10.mp4',
+    'yplug_pre_train_0682312_14_10.mp4',
+    'yplug_pre_train_0683288_92_10.mp4',
+    'yplug_pre_train_0692631_18_10.mp4',
+    'yplug_pre_train_0705907_57_10.mp4',
+    'yplug_pre_train_0739514_20_10.mp4',
+    'yplug_pre_train_0807943_6_10.mp4',
+    'yplug_pre_train_0846434_8_10.mp4',
+    'yplug_pre_train_0847674_80_10.mp4',
+    'yplug_pre_train_0849257_6_10.mp4',
+    'yplug_pre_train_0864004_36_10.mp4',
+    'yplug_pre_train_0867723_9_10.mp4',
+    'yplug_pre_train_0871654_28_10.mp4',
+    'yplug_pre_train_0876379_7_10.mp4',
+    'yplug_pre_train_0899156_9_10.mp4',
+    'yplug_pre_train_0959050_40_10.mp4'
 ]
 
 def sample_videos(source_root, target_root, num_samples=100, random_seed=42):
@@ -215,7 +257,7 @@ if __name__ == "__main__":
     # Configuration
     SOURCE_DIR = "../Data/RealDist/video"           # Directory containing 'fake' and 'real' folders
     TARGET_DIR = "../Data/VQA_videos"  # Output directory
-    SAMPLE_SIZE = 100          # Number of videos to sample from each directory
+    SAMPLE_SIZE = 1000         # Number of videos to sample from each directory
     RANDOM_SEED = 1958         # Fixed random seed for reproducibility
     
     # Run sampling
