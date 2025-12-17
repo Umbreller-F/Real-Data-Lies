@@ -1,11 +1,10 @@
 """
 NPR: Rethinking the Up-Sampling Operations in CNN-based Generative Network for Generalizable Deepfake Detection@CVPR'2024
 Copyright (c) Beijing Jiaotong University and its affiliates.
-Modified by Chuangchuang Tan from https://github.com/chuangchuangtan/NPR-DeepfakeDetection
+Implemented by Chuangchuang Tan from https://github.com/chuangchuangtan/NPR-DeepfakeDetection
 """
 
 import torch.nn as nn
-import torch
 import torch.utils.model_zoo as model_zoo
 from torch.nn import functional as F
 from typing import Any, cast, Dict, List, Optional, Union
@@ -141,6 +140,8 @@ class ResNet(nn.Module):
                     nn.init.constant_(m.bn3.weight, 0)
                 elif isinstance(m, BasicBlock):
                     nn.init.constant_(m.bn2.weight, 0)
+        
+        self.processor = None  # for compatibility
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -170,10 +171,6 @@ class ResNet(nn.Module):
         # n,c,w,h = x.shape
         # if w%2 == 1 : x = x[:,:,:-1,:]
         # if h%2 == 1 : x = x[:,:,:,:-1]
-        b, t, _, h, w = x.shape
-        x = x.view(b * t, 3, h, w)
-        
-
         NPR  = x - self.interpolate(x, 0.5)
 
         x = self.conv1(NPR*2.0/3.0)
@@ -187,45 +184,11 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc1(x)
-        x = x.view(b, t, -1)
-        x = x.mean(1)
 
         return x
 
-    def infer(self, x):
-        # n,c,w,h = x.shape
-        # if -1*w%2 != 0: x = x[:,:,:w%2*-1,:      ]
-        # if -1*h%2 != 0: x = x[:,:,:      ,:h%2*-1]
-        # factor = 0.5
-        # x_half = F.interpolate(x, scale_factor=factor, mode='nearest', recompute_scale_factor=True)
-        # x_re   = F.interpolate(x_half, scale_factor=1/factor, mode='nearest', recompute_scale_factor=True)
-        # NPR  = x - x_re
-        # n,c,w,h = x.shape
-        # if w%2 == 1 : x = x[:,:,:-1,:]
-        # if h%2 == 1 : x = x[:,:,:,:-1]
-        b, t, _, h, w = x.shape
-        x = x.view(b * t, 3, h, w)
-        
 
-        NPR  = x - self.interpolate(x, 0.5)
-
-        x = self.conv1(NPR*2.0/3.0)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc1(x)
-        x = x.view(b, t, -1)
-        x = x.mean(1)
-        return x
-
-
-def resnet18_npr(pretrained=False, **kwargs):
+def resnet18(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -236,7 +199,7 @@ def resnet18_npr(pretrained=False, **kwargs):
     return model
 
 
-def resnet34_npr(pretrained=False, **kwargs):
+def resnet34(pretrained=False, **kwargs):
     """Constructs a ResNet-34 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -247,19 +210,18 @@ def resnet34_npr(pretrained=False, **kwargs):
     return model
 
 
-def resnet50_npr(pretrained=False, **kwargs):
+def resnet50(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model_state = torch.load('/ossfs/workspace/aigc_video/weights/resnet50-19c8e357.pth')
-        model.load_state_dict(model_state, strict=False)
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
 
-def resnet101_npr(pretrained=False, **kwargs):
+def resnet101(pretrained=False, **kwargs):
     """Constructs a ResNet-101 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -270,7 +232,7 @@ def resnet101_npr(pretrained=False, **kwargs):
     return model
 
 
-def resnet152_npr(pretrained=False, **kwargs):
+def resnet152(pretrained=False, **kwargs):
     """Constructs a ResNet-152 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -282,9 +244,10 @@ def resnet152_npr(pretrained=False, **kwargs):
 
 
 if __name__ == "__main__":
-    model = resnet50_npr(pretrained=False)
+    import torch
+    model = resnet50(pretrained=False)
     from torchinfo import summary
     summary(model)
     model = model.cuda()
-    tensor = torch.tensor(np.random.rand(32, 8, 3, 224, 224), dtype=torch.float32).cuda()
+    tensor = torch.tensor(np.random.rand(4, 3, 224, 224), dtype=torch.float32).cuda()
     print(model(tensor).shape)

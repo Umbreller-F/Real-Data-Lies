@@ -26,8 +26,8 @@ class VideoFramesDataset(Dataset):
                  start_idx: int=0,
                  ids_file: str=None):
         super()
-        assert mode in ["train", "test", "val"], f"Mode {mode} is not supported"
-        assert dataset_name in ["GenVideo", "myvideos"], f"Dataset {dataset_name} is not supported"
+        assert mode in ["train", "test", "val", "ref"], f"Mode {mode} is not supported"
+        assert dataset_name in ["GenVideo", "RealDist", "myvideos"], f"Dataset {dataset_name} is not supported"
         assert os.path.exists(data_path), f"Data path {data_path} does not exist"
         assert len_load is None or len_load > 0, f"len_load should be None or positive integer"
         
@@ -105,9 +105,9 @@ class VideoFramesDataset(Dataset):
         video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
         assert len(video_ids) <= self.len_load
         logger.info(f"len of video_ids is {len(video_ids)}")
-        # {Dataset e.g., GenVideo}/video_frames/{label e.g., fake or real}/{generation_model e.g., Sora}/{self.mode}/{video_id e.g., Sora_1}/frames{1-8}.jpg
+        # {Dataset e.g., GenVideo}/nsgvd_frames/{label e.g., fake or real}/{generation_model e.g., Sora}/{self.mode}/{video_id e.g., Sora_1}/frames{1-8}.jpg
         video_dir = os.path.join(self.data_path, "video", self.label, self.generation_model)
-        frame_dir = os.path.join(self.data_path, "video_frames", self.label, self.generation_model, self.mode)
+        frame_dir = os.path.join(self.data_path, "nsgvd_frames", self.label, self.generation_model, self.mode)
         unproceesed_ids = [
                     video_id for video_id in video_ids
                     if not os.path.isdir(os.path.join(frame_dir, video_id)) or len(os.listdir(os.path.join(frame_dir, video_id))) != self.num_frames

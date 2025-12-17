@@ -243,7 +243,7 @@ class VideoDataset(Dataset):
             return video, label, video_id
 
 
-def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, frame_sample_rate=4, no_resize=False,
+def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, num_frames=8, frame_sample_rate=4, no_resize=False,
                       generation_model=None, real_model=None, pn_ratio=1, sample_strategy='fixed_interval'):
     """
     Load and concatenate video datasets for fake and real videos.
@@ -279,7 +279,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 frame_sample_rate=frame_sample_rate,
                 no_resize=no_resize,
                 mode=mode, 
-                num_frames=8,
+                num_frames=num_frames,
                 load_len=load_len,
                 input_shape=tuple(data_cfg.input_shape),
                 )
@@ -294,7 +294,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 frame_sample_rate=frame_sample_rate,
                 no_resize=no_resize,
                 mode=mode, 
-                num_frames=8,
+                num_frames=num_frames,
                 load_len=vae_len,
                 input_shape=tuple(data_cfg.input_shape),
                 vae=vae,
@@ -309,7 +309,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                     frame_sample_rate=frame_sample_rate,
                     no_resize=no_resize,
                     mode=mode, 
-                    num_frames=8,
+                    num_frames=num_frames,
                     load_len=fake_len-vae_len,
                     input_shape=tuple(data_cfg.input_shape),
                     )
@@ -326,7 +326,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 frame_sample_rate=frame_sample_rate,
                 no_resize=no_resize,
                 mode=mode, 
-                num_frames=8,
+                num_frames=num_frames,
                 load_len=load_len,
                 input_shape=tuple(data_cfg.input_shape),
                 )
@@ -340,7 +340,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 frame_sample_rate=frame_sample_rate,
                 no_resize=no_resize,
                 mode=mode, 
-                num_frames=8,
+                num_frames=num_frames,
                 load_len=real_len,
                 input_shape=tuple(data_cfg.input_shape),
                 )
@@ -351,7 +351,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
             generation_model=generation_model,
             frame_sample_rate=frame_sample_rate,
             mode=mode, 
-            num_frames=8,
+            num_frames=num_frames,
             load_len=load_len,
             input_shape=tuple(data_cfg.input_shape),
             )
@@ -362,7 +362,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
             generation_model=real_model,
             frame_sample_rate=frame_sample_rate,
             mode=mode, 
-            num_frames=8,
+            num_frames=num_frames,
             load_len=real_len,
             input_shape=tuple(data_cfg.input_shape),
             )
@@ -371,7 +371,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
     return ConcatDataset([fake_dataset, real_dataset])
 
 
-def get_composite_video_dataset(data_cfg, mode, processor, generation_models:list=[], real_model=None, 
+'''def get_composite_video_dataset(data_cfg, mode, processor, generation_models:list=[], real_model=None, 
                                 sample_strategy='fixed_interval',frame_sample_rate=4, no_resize=False,):
     feature_type = data_cfg.feature_type
     logger.info(f"Using feature type : {feature_type.upper()}")
@@ -405,7 +405,7 @@ def get_composite_video_dataset(data_cfg, mode, processor, generation_models:lis
             num_frames=8,
             load_len=load_len,
             )
-    return ConcatDataset([fake_dataset, real_dataset])
+    return ConcatDataset([fake_dataset, real_dataset])'''
 
 
 if __name__ == "__main__":

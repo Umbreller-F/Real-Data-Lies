@@ -6,6 +6,7 @@ from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
 from models.demamba import XCLIP_DeMamba
 from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
+from models.npr import resnet50
 from utils.train_utils import *
 from torch.utils.data import DataLoader
 from loguru import logger
@@ -41,6 +42,8 @@ def test(cfg: DictConfig):
         model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
     elif cfg.model.name == "DINOv3":
         model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "NPR":
+        model = resnet50()
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
@@ -188,7 +191,6 @@ def test_on_dataloader(model, test_dataloader, feature_type, device = torch.devi
 
     for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
         inputs, labels, sample_ids = batch
-        breakpoint()
         inputs, labels = inputs.float().to(device), labels.to(device)
 
         logits = model(inputs)

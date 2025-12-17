@@ -46,7 +46,6 @@ def get_score_datasets(data_cfg, mode,
                 filter_nsg=filter,
                 filter_frames=filter_frames,
                 resolution_size=resolution_size,
-                start_idx=200, # to avoid overlap with reference data
                 )
     return {"fake": fake_dataset, "real": real_dataset}
 

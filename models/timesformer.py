@@ -70,7 +70,6 @@ class TimesformerBinaryClassifier(nn.Module):
         logger.info("Backbone frozen, only classifier head will be trained")
     
     def forward(self, x, output_attentions: bool = False):
-        # return self.model(pixel_values=x).logits
         outputs = self.model(pixel_values=x, output_attentions=output_attentions)
         if output_attentions:
             return outputs.logits, outputs.attentions

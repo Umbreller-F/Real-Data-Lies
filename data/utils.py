@@ -71,24 +71,36 @@ def get_generation_models(dataset_name):
                 ]
             }
         }
-    elif dataset_name == 'myvideos':
+    elif dataset_name == 'RealDist':
         return {
-            "fake": {
-                "train": [],
-                "test": [
-                    'AnimateDiff', 
-                    'CogVideoX', 
-                    'FramePack', 
-                    'HunyuanVideo', 
-                    'MAGI-1', 
-                    'sora2', 
-                    'Wan2.1'
+        "real": {
+                "train": ["LSVQ"],
+                "val":   ["LSVQ"],
+                "test":  [
+                    "LSVQ",
+                    "LSVQ_1080p",
+                    "RealVSR",
+                    "MSR-VTT",
+                    "Youku",
+                    "Kinetics-400"
                 ]
             },
-            "real": {
-                "train": [],
-                "test": []
-            }
+            "fake": {
+                "train": ["Pika"],
+                "val":   ["Pika"],
+                "test":  [
+                    "ModelScope", 
+                    "MorphStudio",  
+                    "MoonValley", 
+                    "HotShot",
+                    "Show_1",
+                    "Gen2", 
+                    "Crafter",
+                    "Lavie", 
+                    "Sora", 
+                    "WildScrape"
+                ]
+            },
         }
     else:
         raise ValueError(f"Dataset {dataset_name} is not supported")

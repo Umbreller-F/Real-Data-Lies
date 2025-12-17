@@ -39,15 +39,15 @@ data:
   input_shape: [224,224]
   resolution_size: 224
   train_real_model: "Kinetics-400"
+  val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
-  val_real_model: "MSR-VTT"
-  ref_model: "MSR-VTT"
+  ref_model: "Kinetics-400"
   ref_mode: "test"
   filter_nsg: False
   diffuse_steps: 5
   train_load_len: 10000
   ref_load_len: 200
-  val_load_len: 100
+  val_load_len: 1000
   batch_size: 24
   val_batch_size: 24
 

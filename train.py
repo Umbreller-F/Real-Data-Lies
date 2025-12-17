@@ -7,6 +7,7 @@ from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
 from models.demamba import XCLIP_DeMamba
 from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
+from models.npr import resnet50
 from loguru import logger
 from tqdm import tqdm
 from tabulate import tabulate
@@ -44,6 +45,8 @@ def main(cfg: DictConfig):
         model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
     elif cfg.model.name == "DINOv3":
         model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
+    elif cfg.model.name == "NPR":
+        model = resnet50()
     else:
         raise NotImplementedError("Model Not supported")
     model = model.to(device)
