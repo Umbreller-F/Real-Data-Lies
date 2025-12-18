@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA
 # from data.video_dataset import get_video_dataset
 from data.dataset import get_dataset
 from omegaconf import DictConfig, OmegaConf
@@ -73,6 +73,9 @@ def main(cfg: DictConfig):
     elif cfg.data.dataset_name == "RealDist":
         if cfg.data.generation_model == "Pika":
             generation_models = REALDIST_PIKA
+    elif cfg.data.dataset_name == "RealDist-I":
+        if cfg.data.generation_model == "Pika":
+            generation_models = REALDIST_I_PIKA
     else:
         raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
     pn_ratio = 1

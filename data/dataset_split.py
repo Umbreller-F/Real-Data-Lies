@@ -157,6 +157,7 @@ REALDIST_PIKA = {
         "test":  [
             "LSVQ",
             "LSVQ_1080p",
+            "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
@@ -184,12 +185,12 @@ REALDIST_PIKA = {
 # real data distribution
 REALDIST_I_PIKA = {
     "real": {
-        "train": ["InternVid_AES"],
-        "val":   ["InternVid_AES"],
+        "train": ["InternVid-AES"],
+        "val":   ["InternVid-AES"],
         "test":  [
             "LSVQ",
             "LSVQ_1080p",
-            "InternVid_AES",
+            "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
