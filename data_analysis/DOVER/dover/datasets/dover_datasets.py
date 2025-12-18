@@ -389,7 +389,7 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
                 video_filenames = []
                 for (root, dirs, files) in os.walk(self.data_prefix, topdown=True):
                     for file in files:
-                        if file.endswith(".mp4") or file.endswith(".mov"):
+                        if file.endswith((".mp4", ".mov", ".webm")):
                             video_filenames += [os.path.join(root, file)]
                 print(len(video_filenames))
                 video_filenames = sorted(video_filenames)

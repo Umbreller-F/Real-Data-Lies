@@ -95,16 +95,13 @@ def test(cfg: DictConfig):
     test_dataloaders = {}
     for real_model in generation_models["real"]["test"]:
         for fake_model in generation_models["fake"]["test"]:
-            if fake_model == "Sora":
-                test_dataset = get_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
-                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-                )
-            else:
-                test_dataset = get_dataset(
-                    cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
-                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-                )
+            test_dataset = get_dataset(
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
+                num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+            )
+            if 0 in test_dataset.cumulative_sizes:
+                logger.warning(f"Test dataset {real_model}-{fake_model} has no positive or negative samples, skipping...")
+                continue
             test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
     # endregion

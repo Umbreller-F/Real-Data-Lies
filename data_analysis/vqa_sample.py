@@ -53,6 +53,28 @@ YOUKU_ERROR_VIDEOS = [
     'yplug_pre_train_0959050_40_10.mp4'
 ]
 
+TARGET_SUBDIRS = [
+    'fake/Crafter', 
+    'fake/Gen2', 
+    'fake/HotShot', 
+    'fake/Lavie', 
+    'fake/ModelScope', 
+    'fake/MoonValley', 
+    'fake/MorphStudio', 
+    'fake/Pika', 
+    'fake/SEINE', 
+    'fake/Show_1', 
+    'fake/Sora', 
+    'fake/WildScrape',
+    'real/Kinetics-400', 
+    'real/LSVQ', 
+    'real/LSVQ_1080p', 
+    'real/MSR-VTT', 
+    'real/RealVSR', 
+    'real/Youku',
+    'real/InternVid_AES'
+]
+
 def sample_videos(source_root, target_root, num_samples=100, random_seed=42):
     """
     Randomly sample videos from each subdirectory with fixed random seed
@@ -84,96 +106,87 @@ def sample_videos(source_root, target_root, num_samples=100, random_seed=42):
     print(f"Samples per directory: {num_samples}")
     print("=" * 50)
     
-    # Process 'fake' and 'real' directories
-    for top_dir in ['fake', 'real']:
-        top_dir_path = source_path / top_dir
-        if not top_dir_path.exists():
-            print(f"Warning: Directory '{top_dir}' not found")
+    for subdir in TARGET_SUBDIRS:
+        subdir = source_path / subdir
+        subdir_name = subdir.name
+        if not subdir.exists() or not subdir.is_dir():
+            print(f"Warning: Subdirectory '{subdir_name}' not found, skipping")
             continue
             
-        print(f"\nProcessing '{top_dir}' directory:")
-        print("-" * 30)
+        print(f"\nProcessing subdirectory: {subdir_name}")
+            
+        # Get all video files
+        all_videos = []
+        for root, dirs, files in os.walk(subdir):
+            for file in files:
+                if Path(file).suffix.lower() in video_extensions:
+                    all_videos.append(Path(root) / file)
         
-        # Process each subdirectory
-        for subdir in sorted(top_dir_path.iterdir()):
-            if not subdir.is_dir():
+        if not all_videos:
+            print(f"    No video files found, skipping")
+            summary_log.append(f"{subdir_name}: 0 files (no videos)")
+            continue
+        
+        # Sort for consistent ordering before sampling
+        all_videos = sorted(all_videos)
+        
+        # Random sampling
+        total_videos = len(all_videos)
+        samples_to_take = min(num_samples, total_videos)
+        
+        if total_videos <= num_samples:
+            selected_videos = all_videos
+            print(f"    Found {total_videos} videos, taking all")
+        else:
+            # Use random.sample for sampling without replacement
+            selected_indices = random.sample(range(total_videos), samples_to_take)
+            selected_videos = [all_videos[i] for i in sorted(selected_indices)]
+            print(f"    Found {total_videos} videos, sampling {samples_to_take}")
+        
+        # Create target subdirectory
+        target_subdir = target_path / subdir_name
+        target_subdir.mkdir(exist_ok=True)
+        
+        # Copy files and record names
+        selected_filenames = []
+        copied_count = 0
+        
+        for src_file in selected_videos:
+            # Target file path
+            dst_file = target_subdir / src_file.name
+            if dst_file.name in YOUKU_ERROR_VIDEOS:
                 continue
-                
-            subdir_name = subdir.name
-            print(f"  Processing: {subdir_name}")
-            
-            # Get all video files
-            all_videos = []
-            for root, dirs, files in os.walk(subdir):
-                for file in files:
-                    if Path(file).suffix.lower() in video_extensions:
-                        all_videos.append(Path(root) / file)
-            
-            if not all_videos:
-                print(f"    No video files found, skipping")
-                summary_log.append(f"{subdir_name}: 0 files (no videos)")
+            # Handle duplicate filenames
+            if dst_file.exists():
+                print(f"    Skip {src_file.name} (already exists in target)")
                 continue
             
-            # Sort for consistent ordering before sampling
-            all_videos = sorted(all_videos)
-            
-            # Random sampling
-            total_videos = len(all_videos)
-            samples_to_take = min(num_samples, total_videos)
-            
-            if total_videos <= num_samples:
-                selected_videos = all_videos
-                print(f"    Found {total_videos} videos, taking all")
-            else:
-                # Use random.sample for sampling without replacement
-                selected_indices = random.sample(range(total_videos), samples_to_take)
-                selected_videos = [all_videos[i] for i in sorted(selected_indices)]
-                print(f"    Found {total_videos} videos, sampling {samples_to_take}")
-            
-            # Create target subdirectory
-            target_subdir = target_path / subdir_name
-            target_subdir.mkdir(exist_ok=True)
-            
-            # Copy files and record names
-            selected_filenames = []
-            copied_count = 0
-            
-            for src_file in selected_videos:
-                # Target file path
-                dst_file = target_subdir / src_file.name
-                if dst_file.name in YOUKU_ERROR_VIDEOS:
-                    continue
-                # Handle duplicate filenames
-                if dst_file.exists():
-                    print(f"    Skip {src_file.name} (already exists in target)")
-                    continue
+            # Copy file
+            try:
+                shutil.copy2(src_file, dst_file)
+                copied_count += 1
                 
-                # Copy file
-                try:
-                    shutil.copy2(src_file, dst_file)
-                    copied_count += 1
-                    
-                    # Record relative path
-                    rel_path = src_file.relative_to(subdir)
-                    selected_filenames.append(str(rel_path))
-                    
-                except Exception as e:
-                    print(f"    Error copying {src_file.name}: {e}")
-            
-            # Save selected filenames to txt file (simple format)
-            if selected_filenames:
-                txt_filename = target_path / f"{subdir_name}_selected.txt"
-                with open(txt_filename, 'w', encoding='utf-8') as f:
-                    # Write one filename per line, no extra information
-                    for filename in selected_filenames:
-                        f.write(f"{filename}\n")
+                # Record relative path
+                rel_path = src_file.relative_to(subdir)
+                selected_filenames.append(str(rel_path))
                 
-                print(f"    Saved file list to: {txt_filename.name}")
+            except Exception as e:
+                print(f"    Error copying {src_file.name}: {e}")
+        
+        # Save selected filenames to txt file (simple format)
+        if selected_filenames:
+            txt_filename = target_path / f"{subdir_name}_selected.txt"
+            with open(txt_filename, 'w', encoding='utf-8') as f:
+                # Write one filename per line, no extra information
+                for filename in selected_filenames:
+                    f.write(f"{filename}\n")
             
-            print(f"    Copied {copied_count} files to {target_subdir.name}/")
-            
-            # Add to summary
-            summary_log.append(f"{subdir_name}: {copied_count} files ({samples_to_take}/{total_videos})")
+            print(f"    Saved file list to: {txt_filename.name}")
+        
+        print(f"    Copied {copied_count} files to {target_subdir.name}/")
+        
+        # Add to summary
+        summary_log.append(f"{subdir_name}: {copied_count} files ({samples_to_take}/{total_videos})")
     
     # Save summary file
     if summary_log:

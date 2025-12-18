@@ -8,6 +8,9 @@ import os
 from moviepy import VideoFileClip
 import multiprocessing
 
+
+SUPPORT_EXT = ['.mp4', '.mov', '.webm', '.gif']
+
 class VideoFramesDataset(Dataset):
     """
     VideoFramesDataset for different video datasets
@@ -92,15 +95,15 @@ class VideoFramesDataset(Dataset):
         assert os.path.exists(self.data_path), f"Data path {self.data_path} does not exist"
         if self.ids_file is not None:
             video_ids_txt = self.ids_file
-            assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
+            assert os.path.exists(video_ids_txt), f"{video_ids_txt} not found"
             with open(video_ids_txt, "r") as f:
                 video_ids = [line.strip() + ".mp4" for line in f if line.strip()]
         else:
             video_ids_txt = os.path.join(self.data_path, "split", self.label, self.generation_model, f"{self.mode}_ids.txt")
-            assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
+            assert os.path.exists(video_ids_txt), f"{video_ids_txt} not found"
             with open(video_ids_txt, "r") as f:
                 video_ids = [line.strip() for line in f if line.strip()]
-        video_ids = [vid for vid in video_ids if vid.endswith(('.mp4', '.mov', '.gif'))]
+        video_ids = [vid for vid in video_ids if vid.endswith(tuple(SUPPORT_EXT))]
         video_ids = video_ids[self.start_idx:self.start_idx + self.len_load]
         video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
         assert len(video_ids) <= self.len_load
@@ -147,7 +150,7 @@ def get_video_frame_count(file_path):
 def process_video(args):
     """process single video"""
     video_path, num_frames, output_dir = args  # index, video_path
-    if video_path.endswith(".mp4") or video_path.endswith(".mov"):
+    if video_path.endswith(tuple(SUPPORT_EXT)):
         try:
             output_dir = output_dir 
             os.makedirs(output_dir, exist_ok=True)
@@ -187,7 +190,7 @@ def process_video(args):
             print(f"Error processing {video_path}: {str(e)}")
 
 def process_video2frames(dir, ids, num_frames, output_base_dir):
-    supported_extensions = ['.mp4', '.gif', '.mov']
+    supported_extensions = SUPPORT_EXT
     video_args = []
     for id in ids:
         for ext in supported_extensions:
@@ -195,7 +198,7 @@ def process_video2frames(dir, ids, num_frames, output_base_dir):
             if os.path.exists(video_path):
                 video_args.append((video_path, num_frames, os.path.join(output_base_dir, id)))
                 break
-    # video_args = [(os.path.join(dir, f"{id}.mp4"), num_frames, os.path.join(output_base_dir, id)) for id in ids]
+
     logger.info(f"Processing {len(ids)} videos")
     pool = multiprocessing.Pool(processes=24)
     pool.map(process_video, video_args)

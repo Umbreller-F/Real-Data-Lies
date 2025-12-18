@@ -5,6 +5,9 @@ from copy import deepcopy
 import numpy as np
 import torch.nn as nn
 import torch
+import logging
+
+logging.getLogger("transformers_modules.OpenGVLab.VideoMAEv2-Base").setLevel(logging.WARNING)
 
 
 class VideoMAEv2Classifier(nn.Module):

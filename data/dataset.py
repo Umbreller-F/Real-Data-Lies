@@ -51,7 +51,7 @@ class ImageDataset(Dataset):
             # Check if the directory exists and contains .jpg files
             if os.path.isdir(video_dir):
                 frames = sorted(
-                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg') or f.endswith('.png')],
+                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith(('.jpg', '.png'))],
                     key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
                 )
                 # Only add the frames list if it is not empty
@@ -66,7 +66,7 @@ class ImageDataset(Dataset):
             # Check if the directory exists and contains .jpg files
             if os.path.isdir(video_dir):
                 frames = sorted(
-                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg') or f.endswith('.png')],
+                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith(('.jpg', '.png'))],
                     key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
                 )
                 if len(frames) < self.num_frames:
@@ -165,7 +165,7 @@ class VideoDataset(Dataset):
             # Check if the directory exists and contains .jpg files
             if os.path.isdir(video_dir):
                 frames = sorted(
-                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith('.jpg') or f.endswith('.png')],
+                    [os.path.join(video_dir, f) for f in os.listdir(video_dir) if f.endswith(('.jpg', '.png'))],
                     key=lambda x: int(os.path.splitext(os.path.basename(x))[0].replace('frame', ''))
                 )
                 if len(frames) < self.num_frames:
@@ -176,7 +176,11 @@ class VideoDataset(Dataset):
                     max_sample_rate = max(1, (len(frames) - 1) // (self.num_frames - 1))
                     sampled_frames = frames[::max_sample_rate][:self.num_frames]
                 self.video_frame_paths.append(sampled_frames)
-
+        
+        if len(self.video_frame_paths) == 0:
+            logger.warning(f"No valid videos found in {self.base_dir} with at least {self.num_frames} frames.")
+            return
+        
         if load_len is not None:
             self.video_frame_paths = self.video_frame_paths[:load_len]
         if not use_vae:
