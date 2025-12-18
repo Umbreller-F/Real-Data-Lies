@@ -6,7 +6,7 @@ hydra:
     dir: "results/outputs/" 
 
 model:
-  name: "timesformer-ssv2"
+  name: "TimeSformer-ssv2"
   pretrained: True
 
 seed: 42

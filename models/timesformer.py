@@ -10,7 +10,7 @@ import torch
 
 class TimesformerBinaryClassifier(nn.Module):
     def __init__(self,
-                 model_name: Literal['timesformer-k400', 'timesformer-ssv2'] = 'timesformer-k400',
+                 model_name: Literal['TimeSformer-k400', 'TimeSformer-ssv2'] = 'TimeSformer-k400',
                  pretrained: bool = True,
                  output_dim: int = 1,
                  freeze_backbone: bool = False,
@@ -28,9 +28,9 @@ class TimesformerBinaryClassifier(nn.Module):
         super().__init__()
         
         # Load model and processor
-        if model_name == 'timesformer-k400':
+        if model_name == 'TimeSformer-k400':
             self.model_name = "facebook/timesformer-base-finetuned-k400"
-        elif model_name == 'timesformer-ssv2':
+        elif model_name == 'TimeSformer-ssv2':
             self.model_name = "facebook/timesformer-base-finetuned-ssv2"
         else:
             raise ValueError(f"Unknown model name: {model_name}")

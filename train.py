@@ -5,6 +5,7 @@ from data.dataset import get_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
+from models.videomaev2 import VideoMAEv2Classifier
 from models.demamba import XCLIP_DeMamba
 from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from models.npr import resnet50
@@ -37,8 +38,10 @@ def main(cfg: DictConfig):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # region Model
-    if 'timesformer' in cfg.model.name:
+    if 'TimeSformer' in cfg.model.name:
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+    elif cfg.model.name == "VideoMAEv2":
+        model = VideoMAEv2Classifier()
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
     elif cfg.model.name == "DINOv2":
@@ -84,7 +87,7 @@ def main(cfg: DictConfig):
         vae, recon_prop = None, None
     train_dataset = get_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
                                 mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                                 vae=vae, recon_prop=recon_prop)
     train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     # val data
@@ -93,7 +96,7 @@ def main(cfg: DictConfig):
     fake_model = generation_models["fake"]["val"][0]
     val_dataset = get_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
                               processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
-                              sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                              num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                               vae=vae, recon_prop=recon_prop)
     val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader

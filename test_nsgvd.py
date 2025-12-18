@@ -68,8 +68,7 @@ def main(cfg: DictConfig):
                                     resolution_size=cfg.data.resolution_size)
     test_dataloaders = {}
     for fake_model in generation_models["fake"]["test"]:
-        for real_model in get_generation_models(cfg.data.dataset_name)["real"]["test"]:
-            real_model = cfg.data.test_real_model
+        for real_model in generation_models["real"]["test"]:
             if fake_model == "Sora":
                 load_len = 56
             else:
@@ -80,14 +79,15 @@ def main(cfg: DictConfig):
                                               real_model=real_model,
                                               generation_model=fake_model, filter=False, resolution_size=cfg.data.resolution_size)
             test_loader = get_data_loaders_for_mmd(cfg.data, test_datasets, batch_size=cfg.data.val_batch_size)
-            test_dataloaders[f"{fake_model}"] = test_loader
+            # test_dataloaders[f"{fake_model}"] = test_loader
+            test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
 
     feature_ref, ref_data = get_ref_features(model, ref_dataloader, cfg.data.ref_load_len)
     feature_ref = feature_ref.cuda()
     regression_model = None
     # endregion
         
-    # region Evaluate Model
+    # region Eval Model
     results = []
     logger.info("Starting evaluation...")
     with torch.no_grad():
@@ -97,18 +97,70 @@ def main(cfg: DictConfig):
                 regression_model
             )
             results.append([name, 
+                            test_results["precision"], 
                             test_results["recall"], 
                             test_results["accuracy"], 
-                            test_results["f1"], 
+                            test_results["f1"],
+                            test_results["positive_accuracy"],
+                            test_results["negative_accuracy"],
                             test_results["auroc"],
-                            test_results["precision"], 
                             ])
-            logger.info(
-                f"Dataset: {name} | Recall: {test_results['recall']:.4f} | F1: {test_results['f1']:.4f} | "
-                f"Accuracy: {test_results['accuracy']:.4f} | Precision: {test_results['precision']:.4f} | "
-                f"AUROC: {test_results['auroc']:.4f}"
+            tqdm.write(
+                f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
+                f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
+                f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
             )
-    # Save results to CSV
+    headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "FakeACC", "RealACC", "AUROC"]
+    # Group results by real_model
+    grouped_results = {}
+    for row in results:
+        dataset_name = row[0]
+        if '-' in dataset_name:
+            real_model = dataset_name.split('-')[0]
+            if real_model not in grouped_results:
+                grouped_results[real_model] = []
+            grouped_results[real_model].append(row)
+    # Build final table with averages and separators
+    final_results = []
+    final_csv = []
+    avg_csv = []
+
+    for real_model, model_results in grouped_results.items():
+        # Add individual results
+        final_results.extend(model_results)
+        final_csv.extend(model_results)
+        
+        # Calculate average for this real_model
+        if len(model_results) > 1:
+            avg_row = [f"{real_model}-Avg"]
+            for i in range(1, len(headers)):
+                avg_value = sum(r[i] for r in model_results) / len(model_results)
+                avg_row.append(avg_value)
+            final_results.append(avg_row)
+            final_csv.append(avg_row)
+            avg_csv.append(avg_row)
+        
+        # Add separator (except after last group)
+        if real_model != list(grouped_results.keys())[-1]:
+            final_csv.append(["-" * 4] * len(headers))
+    
+    csv_path = os.path.join(cfg.log_path, f"{cfg.save_csv_file}")
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    # Save all detailed results to CSV with four decimal places
+    df = pd.DataFrame(final_csv, columns=headers)
+    df = df.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
+    df.to_csv(csv_path, index=False, header=True)
+    logger.success(f"Test all detailed results saved to {csv_path}.")
+    # Save average values to avg_path
+    avg_path = csv_path.replace(".csv", "-avg.csv")
+    df_avg = pd.DataFrame(avg_csv, columns=headers)
+    df_avg = df_avg.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
+    df_avg.to_csv(avg_path, index=False, header=True)
+    logger.success(f"Test average results saved to {avg_path}.")
+
+    # Print results in table format
+    logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))
+    '''# Save results to CSV
     headers = ["Dataset", "Recall", "Accuracy", "F1", "AUROC", "Precision"]
     # Calculate mean of all metrics
     mean_metrics = ["Avg."]
@@ -126,10 +178,10 @@ def main(cfg: DictConfig):
     df = df.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
     df = df.transpose()  # Transpose the table
     df.to_csv(csv_path, index=True, header=False)
-    logger.success(f"Test results saved to {csv_path}")
+    logger.success(f"Test results saved to {csv_path}")'''
     # endregion
 
-# region Testing Function
+# region Test Func
 @torch.no_grad()
 def test_dMMD(model, test_dataloader, feature_ref, ref_data, regression_model=None):
     model.eval()
@@ -172,12 +224,30 @@ def test_dMMD(model, test_dataloader, feature_ref, ref_data, regression_model=No
         except ValueError as e:
             logger.error(f"DeepMMD testing failed due to {e}. Exiting the program.")
         
+        # Calculate class-wise accuracy
+        positive_mask = labels == 1
+        negative_mask = labels == 0
+        
+        if positive_mask.any():  # Check if there are positive samples
+            positive_acc = accuracy_score(labels[positive_mask], predict[positive_mask])
+        else:
+            positive_acc = 0.0
+            logger.warning("No positive samples found in test set")
+        
+        if negative_mask.any():  # Check if there are negative samples
+            negative_acc = accuracy_score(labels[negative_mask], predict[negative_mask])
+        else:
+            negative_acc = 0.0
+            logger.warning("No negative samples found in test set")
+        
     return {
         "precision": precision,
         "recall": recall,
         "f1": f1,
         "accuracy": acc,
         "auroc": auroc,
+        "positive_accuracy": positive_acc,  # Accuracy on positive class (fake video)
+        "negative_accuracy": negative_acc,  # Accuracy on negative class (real video)
     }
 # endregion
 

@@ -6,7 +6,7 @@ hydra:
     dir: "results/outputs/" 
 
 model:
-  name: "timesformer-k400"
+  name: "TimeSformer-k400"
   pretrained: False
 
 seed: 42

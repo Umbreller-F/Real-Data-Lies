@@ -4,6 +4,7 @@ from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS
 from data.dataset import get_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
+from models.videomaev2 import VideoMAEv2Classifier
 from models.demamba import XCLIP_DeMamba
 from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
 from models.npr import resnet50
@@ -34,8 +35,10 @@ def test(cfg: DictConfig):
 
     # region Load Model
     logger.info(f"Loading model: {cfg.model.name}")
-    if 'timesformer' in cfg.model.name:
+    if 'TimeSformer' in cfg.model.name:
         model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+    elif cfg.model.name == "VideoMAEv2":
+        model = VideoMAEv2Classifier()
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
     elif cfg.model.name == "DINOv2":
@@ -48,7 +51,7 @@ def test(cfg: DictConfig):
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     # endregion
 
-    # region Load checkpoint
+    # region Load ckpt
     ckpt_path = cfg.ckpt_path
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"Checkpoint file not found at {ckpt_path}")
@@ -95,18 +98,18 @@ def test(cfg: DictConfig):
             if fake_model == "Sora":
                 test_dataset = get_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=56,
-                    sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
                 )
             else:
                 test_dataset = get_dataset(
                     cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
-                    sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
                 )
             test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
             test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
     # endregion
 
-    # region Evaluate Model
+    # region Eval Model
     results = []
 
     logger.info("Starting evaluation...")
@@ -181,7 +184,7 @@ def test(cfg: DictConfig):
     logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))
     # endregion
 
-# region Testing Function
+# region Test Func
 @torch.no_grad()
 def test_on_dataloader(model, test_dataloader, feature_type, device = torch.device('cuda'), frames_per_video = 8):
     model.eval()

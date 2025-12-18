@@ -6,8 +6,7 @@ hydra:
     dir: "results/outputs/" 
 
 model:
-  name: "TimeSformer-k400"
-  pretrained: True
+  name: "VideoMAEv2"
 
 seed: 42
 trainer:
@@ -30,15 +29,20 @@ data:
   dataset_name: "GenVideo"
   num_workers: 16
   data_path: "../Data/${data.dataset_name}"
-  num_frames: 8
+  num_frames: 16
   generation_model: "Pika" 
-  input_shape: [256,256]
+  input_shape: [224,224]
   train_real_model: "Kinetics-400"
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
   train_load_len: 10000
-  val_load_len: 100
+  val_load_len: 1000
   diffuse_steps: 5
+  vae_recon: False
+  vae_model: 'Wan2.2'
+  recon_prop: 0.5
+  sample_strategy: 'fixed_interval'
+  no_resize: False
   
 task_type: standard # standard / unbalance
 debug: False

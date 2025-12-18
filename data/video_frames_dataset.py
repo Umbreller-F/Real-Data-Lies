@@ -100,7 +100,7 @@ class VideoFramesDataset(Dataset):
             assert os.path.exists(video_ids_txt), f"video_ids_txt not found"
             with open(video_ids_txt, "r") as f:
                 video_ids = [line.strip() for line in f if line.strip()]
-        video_ids = [vid for vid in video_ids if vid.endswith('.mp4')]
+        video_ids = [vid for vid in video_ids if vid.endswith(('.mp4', '.mov', '.gif'))]
         video_ids = video_ids[self.start_idx:self.start_idx + self.len_load]
         video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
         assert len(video_ids) <= self.len_load
@@ -123,7 +123,7 @@ class VideoFramesDataset(Dataset):
         ]
         self.frame_dir = frame_dir
         logger.info(f"Len of self.paths {len(self.paths)}")
-        assert len(self.paths) > 0, f"No video found in {self.data_path}/frames/{self.label}/{self.generation_model}/{self.mode}"
+        assert len(self.paths) > 0, f"No video found in {self.data_path}/nsgvd_frames/{self.label}/{self.generation_model}/{self.mode}"
         
         # 0 for real, 1 for fake
         if self.label == "real":
@@ -147,12 +147,14 @@ def get_video_frame_count(file_path):
 def process_video(args):
     """process single video"""
     video_path, num_frames, output_dir = args  # index, video_path
-    if video_path.endswith(".mp4"):
+    if video_path.endswith(".mp4") or video_path.endswith(".mov"):
         try:
             output_dir = output_dir 
             os.makedirs(output_dir, exist_ok=True)
 
             total_frames = get_video_frame_count(video_path)
+            if total_frames < num_frames:
+                return
             frame_interval = max(1, total_frames // num_frames)
 
             cmd = (
@@ -170,6 +172,8 @@ def process_video(args):
             os.makedirs(output_dir, exist_ok=True)
 
             total_frames = get_video_frame_count(video_path)
+            if total_frames < num_frames:
+                return
             frame_interval = max(1, total_frames // num_frames)
 
             cmd = (
@@ -183,7 +187,15 @@ def process_video(args):
             print(f"Error processing {video_path}: {str(e)}")
 
 def process_video2frames(dir, ids, num_frames, output_base_dir):
-    video_args = [(os.path.join(dir, f"{id}.mp4"), num_frames, os.path.join(output_base_dir, id)) for id in ids]
+    supported_extensions = ['.mp4', '.gif', '.mov']
+    video_args = []
+    for id in ids:
+        for ext in supported_extensions:
+            video_path = os.path.join(dir, f"{id}{ext}")
+            if os.path.exists(video_path):
+                video_args.append((video_path, num_frames, os.path.join(output_base_dir, id)))
+                break
+    # video_args = [(os.path.join(dir, f"{id}.mp4"), num_frames, os.path.join(output_base_dir, id)) for id in ids]
     logger.info(f"Processing {len(ids)} videos")
     pool = multiprocessing.Pool(processes=24)
     pool.map(process_video, video_args)

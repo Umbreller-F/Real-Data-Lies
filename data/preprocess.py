@@ -12,7 +12,7 @@ def get_video_frame_count(file_path):
     # print(video.fps, video.duration)
     return int(video.fps * video.duration)
 
-# region uniform sampling
+'''# region uniform sampling
 def process_video(args):
     """process single video"""
     video_path, num_frames, output_dir = args  # index, video_path
@@ -127,9 +127,9 @@ def setup_dataset_consecutive(data_path='../Data/myvideos', generation_model='MS
     ]
     if len(unproceesed_ids) > 0:
         process_video2frames_consecutive(video_dir, unproceesed_ids, num_frames, frame_dir)
-# endregion
+# endregion'''
 
-# region extract all frames
+# region frame extract
 def extract_all_frames(args):
     """Extract all frames from the entire video"""
     video_path, output_dir = args
