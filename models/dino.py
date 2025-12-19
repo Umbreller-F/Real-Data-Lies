@@ -4,6 +4,10 @@ import numpy as np
 from typing import Literal
 from torchinfo import summary
 from loguru import logger
+import logging
+
+logging.getLogger("dinov2").setLevel(logging.WARNING)
+logging.getLogger("dinov3").setLevel(logging.WARNING)
 
 
 class DINOv2WithLinearProbe(nn.Module):

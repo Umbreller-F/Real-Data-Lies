@@ -26,7 +26,7 @@ trainer:
 data:
   feature_type: video
   dataset_name: "GenVideo"
-  num_workers: 16
+  num_workers: 32
   data_path: "../Data/${data.dataset_name}"
   num_frames: 8
   generation_model: "Pika" 

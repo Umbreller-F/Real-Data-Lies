@@ -82,7 +82,8 @@ def get_generation_models(dataset_name):
                     "RealVSR",
                     "MSR-VTT",
                     "Youku",
-                    "Kinetics-400"
+                    "Kinetics-400",
+                    "InternVid-AES",
                 ]
             },
             "fake": {

@@ -8,7 +8,6 @@ def get_score_datasets(data_cfg, mode,
                        load_len=1000, generation_model = None,
                        real_model = None, filter=True, pn_ratio=1, filter_frames=False, resolution_size=224):
     logger.info(f"Preparing {mode} datasets for generation model: {generation_model} and real model: {real_model}")
-    fake_len = int(load_len * pn_ratio)
     fake_dataset = ScoreFeaturesDataset(
                 score_config_path="./libs/eps_ad/imagnet.yml",
                 score_args_path="./libs/eps_ad/args.yml",
@@ -23,11 +22,12 @@ def get_score_datasets(data_cfg, mode,
                 feature_type=data_cfg.feature_type,
                 num_frames=8,
                 mode=mode, 
-                load_len=fake_len,
+                load_len=load_len,
                 filter_nsg=filter,
                 filter_frames=filter_frames,
                 resolution_size=resolution_size
                 )
+    real_len = int(len(fake_dataset) / pn_ratio)
     real_dataset = ScoreFeaturesDataset(
                 score_config_path="./libs/eps_ad/imagnet.yml",
                 score_args_path="./libs/eps_ad/args.yml",
@@ -42,11 +42,12 @@ def get_score_datasets(data_cfg, mode,
                 feature_type=data_cfg.feature_type,
                 num_frames=8,
                 mode=mode, 
-                load_len=load_len,
+                load_len=real_len,
                 filter_nsg=filter,
                 filter_frames=filter_frames,
                 resolution_size=resolution_size,
                 )
+    logger.info(f"Data ratio: {generation_model}:{real_model}={len(fake_dataset)}:{len(real_dataset)}")
     return {"fake": fake_dataset, "real": real_dataset}
 
 def process_real_datasets(data_cfg, mode, 

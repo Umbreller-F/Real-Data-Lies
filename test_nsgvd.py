@@ -20,7 +20,11 @@ import pandas as pd
 @hydra.main(config_path="configs/nsg-vd-mp-224x224", config_name="model-test.yaml", version_base=None)
 def main(cfg: DictConfig):
     # Setup Logging
-    logger.info(OmegaConf.to_yaml(cfg))
+    log_dir = cfg.log_path
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"{cfg.data.dataset_name}.log")
+    logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip", mode='w')
+    logger.info('Testing configuration:\n' + OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
 
@@ -69,17 +73,13 @@ def main(cfg: DictConfig):
     test_dataloaders = {}
     for fake_model in generation_models["fake"]["test"]:
         for real_model in generation_models["real"]["test"]:
-            if fake_model == "Sora":
-                load_len = 56
-            else:
-                load_len = cfg.data.test_load_len
+            load_len = cfg.data.test_load_len
             test_datasets = get_score_datasets(cfg.data, 
                                               "test",
                                               load_len=load_len,
                                               real_model=real_model,
                                               generation_model=fake_model, filter=False, resolution_size=cfg.data.resolution_size)
             test_loader = get_data_loaders_for_mmd(cfg.data, test_datasets, batch_size=cfg.data.val_batch_size)
-            # test_dataloaders[f"{fake_model}"] = test_loader
             test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
 
     feature_ref, ref_data = get_ref_features(model, ref_dataloader, cfg.data.ref_load_len)

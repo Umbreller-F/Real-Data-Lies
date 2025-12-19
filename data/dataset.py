@@ -247,7 +247,7 @@ class VideoDataset(Dataset):
             return video, label, video_id
 
 
-def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, num_frames=8, frame_sample_rate=4, no_resize=False,
+def get_paired_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=None, num_frames=8, frame_sample_rate=4, no_resize=False,
                       generation_model=None, real_model=None, pn_ratio=1, sample_strategy='fixed_interval'):
     """
     Load and concatenate video datasets for fake and real videos.
@@ -287,7 +287,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 load_len=load_len,
                 input_shape=tuple(data_cfg.input_shape),
                 )
-            fake_len = int(load_len * pn_ratio) if load_len else None
+            fake_len = int(len(real_dataset) * pn_ratio)
             vae_len = int(fake_len * recon_prop)
             vae_fake_dataset = VideoDataset(
                 processor=processor,
@@ -334,7 +334,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
                 load_len=load_len,
                 input_shape=tuple(data_cfg.input_shape),
                 )
-            real_len = int(load_len / pn_ratio) if load_len else None
+            real_len = int(len(fake_dataset) / pn_ratio)
             real_dataset = VideoDataset(
                 processor=processor,
                 data_path=data_cfg.data_path, 
@@ -359,7 +359,7 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
             load_len=load_len,
             input_shape=tuple(data_cfg.input_shape),
             )
-        real_len = int(load_len / pn_ratio) if load_len else None
+        real_len = int(len(fake_dataset) / pn_ratio)
         real_dataset = ImageDataset(
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
@@ -373,6 +373,40 @@ def get_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load_len=No
     else:
         raise NotImplementedError(f"Feature type {feature_type} is not supported.")
     return ConcatDataset([fake_dataset, real_dataset])
+
+
+def get_single_dataset(data_cfg, mode, processor, load_len=None, num_frames=8, frame_sample_rate=4, no_resize=False,
+                       data_model=None, sample_strategy='fixed_interval'):
+    feature_type = data_cfg.feature_type
+    logger.info(f"Using feature type : {feature_type.upper()}")
+    if feature_type == "video":
+        dataset = VideoDataset(
+            processor=processor,
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=data_model,
+            sample_strategy=sample_strategy,
+            frame_sample_rate=frame_sample_rate,
+            no_resize=no_resize,
+            mode=mode, 
+            num_frames=num_frames,
+            load_len=load_len,
+            input_shape=tuple(data_cfg.input_shape),
+        )
+    elif feature_type == "image":
+        dataset = ImageDataset(
+            data_path=data_cfg.data_path, 
+            dataset_name=data_cfg.dataset_name,
+            generation_model=data_model,
+            frame_sample_rate=frame_sample_rate,
+            mode=mode, 
+            num_frames=num_frames,
+            load_len=load_len,
+            input_shape=tuple(data_cfg.input_shape),
+        )
+    else:
+        raise NotImplementedError(f"Feature type {feature_type} is not supported.")
+    return dataset
 
 
 '''def get_composite_video_dataset(data_cfg, mode, processor, generation_models:list=[], real_model=None, 

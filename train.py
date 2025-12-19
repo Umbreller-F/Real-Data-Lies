@@ -1,7 +1,7 @@
 from utils.experiment_utils import set_seed
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA
 # from data.video_dataset import get_video_dataset
-from data.dataset import get_dataset
+from data.dataset import get_paired_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimesformerBinaryClassifier
@@ -88,7 +88,7 @@ def main(cfg: DictConfig):
         vae = cfg.data.vae_model
     else:
         vae, recon_prop = None, None
-    train_dataset = get_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
+    train_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
                                 mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
                                 num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                                 vae=vae, recon_prop=recon_prop)
@@ -97,7 +97,7 @@ def main(cfg: DictConfig):
     val_dataloaders = {}
     real_model = generation_models["real"]["val"][0]
     fake_model = generation_models["fake"]["val"][0]
-    val_dataset = get_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
+    val_dataset = get_paired_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
                               processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
                               num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                               vae=vae, recon_prop=recon_prop)

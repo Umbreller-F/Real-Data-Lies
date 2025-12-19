@@ -1,7 +1,7 @@
 from utils.experiment_utils import set_seed
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA
 # from data.video_dataset import get_video_dataset, get_composite_video_dataset
-from data.dataset import get_single_dataset
+from data.dataset import get_paired_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimesformerBinaryClassifier
 from models.videomaev2 import VideoMAEv2Classifier
@@ -96,41 +96,41 @@ def test(cfg: DictConfig):
     load_len = cfg.data.test_load_len
     
     test_dataloaders = {}
-    data_models = []
-    for label in ["real", "fake"]:
-        data_models.extend(generation_models[label]["test"])
-    
-    for data_model in data_models:
-        test_dataset = get_single_dataset(
-            cfg.data, mode="test", data_model=data_model, load_len=load_len,
-            num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
-        )
-        if len(test_dataset) == 0:
-            logger.warning(f"Test dataset {data_model} has no samples, skipping...")
-            continue
-        test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
-        test_dataloaders[data_model] = test_loader
+    for real_model in generation_models["real"]["test"]:
+        for fake_model in generation_models["fake"]["test"]:
+            test_dataset = get_paired_dataset(
+                cfg.data, mode="test", generation_model=fake_model, real_model=real_model, load_len=load_len,
+                num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+            )
+            if 0 in test_dataset.cumulative_sizes:
+                logger.warning(f"Test dataset {real_model}-{fake_model} has no positive or negative samples, skipping...")
+                continue
+            test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+            test_dataloaders[f"{real_model}-{fake_model}"] = test_loader
     # endregion
 
     # region Eval Model
-    data_model_results = {}
     results = []
 
     logger.info("Starting evaluation...")
-    for data_model in tqdm(data_models, desc="Testing", unit="data model"):
-        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, device)
-    for real_model in generation_models["real"]["test"]:
-        for fake_model in generation_models["fake"]["test"]:
-            test_results = calculate_metrics(data_model_results[real_model], data_model_results[fake_model])
-            results.append([f"{real_model}-{fake_model}", 
-                            test_results["precision"], 
-                            test_results["recall"], 
-                            test_results["accuracy"], 
-                            test_results["f1"],
-                            test_results["positive_accuracy"],
-                            test_results["negative_accuracy"],
-                            test_results["auroc"],
-                            ])
+    for name, test_loader in tqdm(test_dataloaders.items(), desc="Testing", unit="dataset"):
+        test_results = test_on_dataloader(
+            model, test_loader, cfg.data.feature_type, device
+        )
+        results.append([name, 
+                        test_results["precision"], 
+                        test_results["recall"], 
+                        test_results["accuracy"], 
+                        test_results["f1"],
+                        test_results["positive_accuracy"],
+                        test_results["negative_accuracy"],
+                        test_results["auroc"],
+                        ])
+        tqdm.write(
+            f"Dataset: {name} | Precision: {test_results['precision']:.4f} | Recall: {test_results['recall']:.4f} | "
+            f"Accuracy: {test_results['accuracy']:.4f} | F1: {test_results['f1']:.4f} | "
+            f"FakeACC: {test_results['positive_accuracy']:.4f} | RealACC: {test_results['negative_accuracy']:.4f} | AUROC: {test_results['auroc']:.4f}"
+        )
 
     headers = ["Dataset", "Precision", "Recall", "Accuracy", "F1", "FakeACC", "RealACC", "AUROC"]
     # Group results by real_model
@@ -218,16 +218,6 @@ def test_on_dataloader(model, test_dataloader, feature_type, device = torch.devi
         all_raw_preds = all_raw_preds.reshape(num_videos, frames_per_video).mean(axis=1)
         all_predicted = all_raw_preds > 0.5
 
-    return {
-        "labels": all_labels,
-        "preds": all_predicted,
-        "raw_preds": all_raw_preds,
-    }
-
-def calculate_metrics(real_model_results, fake_model_results):
-    all_labels = np.concatenate([real_model_results['labels'][:len(fake_model_results['labels'])], fake_model_results['labels']])
-    all_predicted = np.concatenate([real_model_results['preds'][:len(fake_model_results['preds'])], fake_model_results['preds']])
-    all_raw_preds = np.concatenate([real_model_results['raw_preds'][:len(fake_model_results['raw_preds'])], fake_model_results['raw_preds']])
     # Calculate class-wise accuracy
     positive_mask = all_labels == 1
     negative_mask = all_labels == 0
