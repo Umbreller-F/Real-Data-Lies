@@ -100,16 +100,19 @@ def test(cfg: DictConfig):
     for label in ["real", "fake"]:
         data_models.extend(generation_models[label]["test"])
     
+    empty_data_models = []
     for data_model in data_models:
         test_dataset = get_single_dataset(
             cfg.data, mode="test", data_model=data_model, load_len=load_len,
             num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
         )
         if len(test_dataset) == 0:
-            logger.warning(f"Test dataset {data_model} has no samples, skipping...")
+            logger.warning(f"Test data model {data_model} has no samples, skipping...")
+            empty_data_models.append(data_model)
             continue
         test_loader = DataLoader(test_dataset, batch_size=cfg.data.val_batch_size, shuffle=False, num_workers=cfg.data.num_workers)
         test_dataloaders[data_model] = test_loader
+    data_models = [dm for dm in data_models if dm not in empty_data_models]
     # endregion
 
     # region Eval Model
@@ -120,7 +123,11 @@ def test(cfg: DictConfig):
     for data_model in tqdm(data_models, desc="Testing", unit="data model"):
         data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, device)
     for real_model in generation_models["real"]["test"]:
+        if real_model in empty_data_models:
+            continue
         for fake_model in generation_models["fake"]["test"]:
+            if fake_model in empty_data_models:
+                continue
             test_results = calculate_metrics(data_model_results[real_model], data_model_results[fake_model])
             results.append([f"{real_model}-{fake_model}", 
                             test_results["precision"], 
