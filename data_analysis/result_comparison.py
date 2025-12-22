@@ -16,14 +16,26 @@ def main():
     # Format: {'file_path': 'legend_label', ...}
     # CSV_CONFIG = {
     #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'Kinetics-400',
+    #     'results/test/video-classifier/GenVideo-Youku-Pika-timesformer-ssv2/RealDist-avg.csv': 'Youku',
     #     'results/test/video-classifier/RealDist-Pika-timesformer-ssv2/RealDist-avg.csv': 'LSVQ',
     #     'results/test/video-classifier/RealDist-I-Pika-timesformer-ssv2/RealDist-avg.csv': 'InternVid-AES',
     # }
 
+    # CSV_CONFIG = {
+    #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
+    #     'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
+    #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
+    # }
+
+    # CSV_CONFIG = {
+    #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'Kinetics-400',
+    #     'results/test/video-classifier/RealDist-I-Pika-demamba/RealDist-avg.csv': 'InternVid-AES',
+    # }
+
     CSV_CONFIG = {
-        'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
-        'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
-        'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
+        'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'Kinetics-400',
+        'results/test/video-classifier/RealDist-I-Pika-timesformer-ssv2/RealDist-avg.csv': 'InternVid-AES',
+        'results/test/video-classifier/RealDist-U-Pika-timesformer-ssv2/RealDist-avg.csv': 'Uniform',
     }
     
     # Define the order of datasets (use exact names as in CSV files)
@@ -38,7 +50,7 @@ def main():
     ]
 
     results_dir = 'data_analysis/results/auc_comparison/'
-    save_name = 'by_model'
+    save_name = 'tsf-ssv2'
     
     # Store all data
     all_data = []

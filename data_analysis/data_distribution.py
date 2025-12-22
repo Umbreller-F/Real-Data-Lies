@@ -67,12 +67,12 @@ FILE_LISTS = {
     "Kinetics-400": [
         'Kinetics-400.csv',
     ],
-    # "Youku": [
-    #     'Youku.csv',
-    # ],
-    # "MSR-VTT": [
-    #     'MSR-VTT.csv',
-    # ],
+    "Youku": [
+        'Youku.csv',
+    ],
+    "MSR-VTT": [
+        'MSR-VTT.csv',
+    ],
 }
 
 OUTPUT_IMG = "data_analysis/results/density_plots/3.png"

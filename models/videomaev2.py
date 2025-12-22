@@ -64,6 +64,7 @@ if __name__ == "__main__":
     # print("Logits shape:", outputs.shape)
     model = VideoMAEv2Classifier()
     summary(model)
+    print(model.processor)
     model = model.cuda()
     tensor = torch.tensor(np.random.rand(4, 16, 3, 224, 224), dtype=torch.float32).cuda()
     with torch.no_grad():

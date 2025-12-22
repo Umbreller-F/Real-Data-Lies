@@ -215,6 +215,39 @@ REALDIST_I_PIKA = {
     },
 }
 
+# real data distribution
+REALDIST_U_PIKA = {
+    "real": {
+        "train": ["Uniform"],
+        "val":   ["Uniform"],
+        "test":  [
+            "LSVQ",
+            "LSVQ_1080p",
+            "InternVid-AES",
+            "RealVSR",
+            "MSR-VTT",
+            "Youku",
+            "Kinetics-400"
+        ]
+    },
+    "fake": {
+        "train": ["Pika"],
+        "val":   ["Pika"],
+        "test":  [
+            "ModelScope", 
+            "MorphStudio",  
+            "MoonValley", 
+            "HotShot",
+            "Show_1",
+            "Gen2", 
+            "Crafter",
+            "Lavie", 
+            "Sora", 
+            "WildScrape"
+        ]
+    },
+}
+
 GENVIDEO_Y_PIKA = {
     "real": {
         "train": ["Youku"],
