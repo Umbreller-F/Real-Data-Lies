@@ -55,27 +55,33 @@ FILE_LISTS = {
     "InternVid-AES": [
         'InternVid_AES.csv'
     ],
-    "LSVQ": [
-        'LSVQ.csv'
-    ],
-    "LSVQ-1080p": [
-        'LSVQ_1080p.csv',
-    ],
+    # "LSVQ": [
+    #     'LSVQ.csv'
+    # ],
+    # "LSVQ-1080p": [
+    #     'LSVQ_1080p.csv',
+    # ],
     "RealVSR": [
         'RealVSR.csv',
     ],
     "Kinetics-400": [
         'Kinetics-400.csv',
     ],
-    "Youku": [
-        'Youku.csv',
+    # "Youku": [
+    #     'Youku.csv',
+    # ],
+    # "MSR-VTT": [
+    #     'MSR-VTT.csv',
+    # ],
+    "GenBuster-test": [
+        'GenBuster-test.csv'
     ],
-    "MSR-VTT": [
-        'MSR-VTT.csv',
+    "GenBuster-benchmark": [
+        'GenBuster-benchmark.csv'
     ],
 }
 
-OUTPUT_IMG = "data_analysis/results/density_plots/3.png"
+OUTPUT_IMG = "data_analysis/results/density_plots/GB.png"
 
 # Main execution
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from utils.experiment_utils import set_seed
+from utils.experiment_utils import set_seed, seed_worker
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA
 # from data.video_dataset import get_video_dataset
 from data.dataset import get_paired_dataset
@@ -33,7 +33,9 @@ def main(cfg: DictConfig):
     logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
     logger.info('Training configuration:\n' + OmegaConf.to_yaml(cfg))
     writer = SummaryWriter(log_dir=log_dir)
-    set_seed(cfg.seed)
+
+    generator = torch.Generator()
+    generator.manual_seed(1958)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -95,7 +97,8 @@ def main(cfg: DictConfig):
                                 mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
                                 num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                                 vae=vae, recon_prop=recon_prop)
-    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
+                              worker_init_fn=seed_worker, generator=generator)
     # val data
     val_dataloaders = {}
     real_model = generation_models["real"]["val"][0]
@@ -104,7 +107,8 @@ def main(cfg: DictConfig):
                               processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
                               num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                               vae=vae, recon_prop=recon_prop)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
+                            worker_init_fn=seed_worker, generator=generator)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion
 
@@ -147,6 +151,10 @@ def main(cfg: DictConfig):
                 else:
                     no_improvement_count += 1
                     logger.info(f"No improvement, consecutive count: {no_improvement_count}/{early_stop_patience}")
+                # save epoch model
+                epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{epoch+1:2}.pth")
+                os.makedirs(os.path.dirname(epoch_model_save_path), exist_ok=True)
+                torch.save(model.state_dict(), epoch_model_save_path)
                 # save best model
                 if val_acc > best_val_acc:
                     logger.info(f"Current acc ({val_acc:.4f}) > Best acc ({best_val_acc:.4f})")

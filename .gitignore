@@ -192,3 +192,4 @@ Wan2.2_VAE.pth
 *.png
 *.pth
 tmp*
+data_analysis/results/resolution/resolution_report.txt

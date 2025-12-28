@@ -84,6 +84,8 @@ def get_generation_models(dataset_name):
                     "Youku",
                     "Kinetics-400",
                     "InternVid-AES",
+                    "GenBuster-200K-benchmark",
+                    "GenBuster-200K-test",
                 ]
             },
             "fake": {
@@ -93,7 +95,7 @@ def get_generation_models(dataset_name):
                     "ModelScope", 
                     "MorphStudio",  
                     "MoonValley", 
-                    "HotShot",
+                    # "HotShot",
                     "Show_1",
                     "Gen2", 
                     "Crafter",
@@ -153,7 +155,7 @@ def get_all_generation_models(dataset_name):
     ]
 
 def get_label_from_generation_model(generation_model):
-    if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG", "Youku", "vsr", "LSVQ", "LSVQ_1080p", "RealVSR", "InternVid-AES", "Uniform"]:
+    if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG", "Youku", "vsr", "LSVQ", "LSVQ_1080p", "RealVSR", "InternVid-AES", "Uniform", "GenBuster-200K-benchmark", "GenBuster-200K-test"]:
         return "real"
     else:
         return "fake"

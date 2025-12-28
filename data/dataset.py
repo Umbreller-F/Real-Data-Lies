@@ -1,14 +1,20 @@
 import os
 import random
+import warnings
+import logging
 import numpy as np
+
 from PIL import Image, ImageOps
 from torch.utils.data import Dataset, ConcatDataset
-from typing import Optional, Callable
 from data.utils import *
-# from pprint import pprint as print
 from loguru import logger
 from torchvision import transforms
-import warnings
+from vidaug import augmentors as va
+
+
+if not hasattr(np, 'float'):
+    np.float = float
+
 warnings.filterwarnings("ignore", message="Creating a tensor from a list of numpy.ndarrays is extremely slow")
 warnings.filterwarnings("ignore", message="`resume_download` is deprecated", category=FutureWarning)
 
@@ -25,7 +31,9 @@ class ImageDataset(Dataset):
         self.frame_sample_rate = frame_sample_rate
         self.input_shape = input_shape
         self.transform = transforms.Compose([
-                            transforms.Resize(input_shape),
+                            # transforms.Resize(input_shape),
+                            transforms.Resize(input_shape[0], interpolation=transforms.InterpolationMode.BILINEAR),
+                            transforms.CenterCrop(input_shape),
                             transforms.ToTensor(),
                             transforms.Normalize(
                             mean=[0.485, 0.456, 0.406],    # Mean of ImageNet
@@ -112,6 +120,7 @@ class VideoDataset(Dataset):
             logger.info(f'Use uniform sampling, {self.num_frames} frames per sample.')
         self.mode = mode
         self.processor = processor
+        logging.getLogger("transformers").setLevel(logging.ERROR)
         self.no_resize = no_resize
         if processor is not None:
             if self.no_resize:
@@ -122,15 +131,31 @@ class VideoDataset(Dataset):
                 else:
                     logger.info("Resize disabled. Using center crop for non-training mode.")
             else:
-                logger.info("Resize enabled with standard timesformer preprocessing pipeline.")
+                logger.info("Resize enabled. Follows backbone's standard preprocessing pipeline.")
         else:
             self.transform = transforms.Compose([
-                                transforms.Resize(input_shape),
+                                # transforms.Resize(input_shape),
+                                transforms.Resize(input_shape[0], interpolation=transforms.InterpolationMode.BILINEAR),
+                                transforms.CenterCrop(input_shape),
                                 transforms.ToTensor(),
                                 transforms.Normalize(
                                 mean=[0.485, 0.456, 0.406],  # Mean of ImageNet
                                 std=[0.229, 0.224, 0.225]),    # Std of ImageNet
                                 ])
+        self.aug = va.Sequential([
+            va.Sometimes(0.5, va.HorizontalFlip()),
+            va.Sometimes(0.5, va.VerticalFlip()),
+            va.Sometimes(0.1, va.InvertColor()),
+            va.Sometimes(0.1, va.RandomRotate(degrees=10)),
+            va.Sometimes(1.0, va.GaussianBlur(sigma=0.1)),
+            va.Sometimes(
+                0.1,
+                va.OneOf([
+                    va.Salt(ratio=100),
+                    va.Pepper(ratio=100)
+                ])
+            )
+        ])
         self.input_shape = input_shape
         self.vae = vae
         self.data_path = data_path
@@ -237,6 +262,9 @@ class VideoDataset(Dataset):
                     video_data = [np.array(img) for img in video_data]
             else:
                 video_data = [np.array(img) for img in video_data]
+            
+            if self.mode == "train":
+                video_data = self.aug(video_data)
             
             video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
             label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
@@ -453,6 +481,10 @@ if __name__ == "__main__":
     from transformers import AutoImageProcessor
     from torch.utils.data import DataLoader
     from copy import deepcopy
+    from utils.experiment_utils import set_seed, seed_worker
+    set_seed(1)
+    generator = torch.Generator()
+    generator.manual_seed(1958)
     
     pn_ratio = 1
     cfg = OmegaConf.create({
@@ -476,11 +508,17 @@ if __name__ == "__main__":
             'no_resize': True
         }
     })
-
-    # logger.debug("Testing VideoDataset...")
-    # demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
-    #                             data_path="../Data/GenVideo", dataset_name="GenVideo",  generation_model="Crafter", mode="test")
-
+    # import logging
+    # logging.getLogger("transformers").setLevel(logging.ERROR)
+    logger.debug("Testing VideoDataset...")
+    demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
+                                data_path="../Data/RealDist", dataset_name="RealDist",  generation_model="InternVid-AES", mode="train")
+    demo_loader = DataLoader(demo_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
+                             worker_init_fn=seed_worker, generator=generator)
+    for idx, batch in enumerate(demo_loader):
+        videos, labels, video_ids = batch
+        print(video_ids)
+        break
     # logger.debug("Testing get_video_dataset...")
     # processsor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
     # real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 
@@ -506,12 +544,12 @@ if __name__ == "__main__":
     #                                       processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", 
     #                                                                                    use_fast=False, local_files_only=True))
 
-    logger.debug("Testing ImageDataset...")
-    imagedataset_demo = ImageDataset(data_path=cfg.data.data_path, dataset_name=cfg.data.dataset_name, input_shape=tuple(cfg.data.input_shape), generation_model="Sora", mode="test")
-    demo_loader = DataLoader(imagedataset_demo, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
-    for batch in demo_loader:
-        images, labels, image_ids = batch
-        print(images.shape)
-        print(image_ids)
-        break
+    # logger.debug("Testing ImageDataset...")
+    # imagedataset_demo = ImageDataset(data_path=cfg.data.data_path, dataset_name=cfg.data.dataset_name, input_shape=tuple(cfg.data.input_shape), generation_model="Sora", mode="test")
+    # demo_loader = DataLoader(imagedataset_demo, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    # for batch in demo_loader:
+    #     images, labels, image_ids = batch
+    #     print(images.shape)
+    #     print(image_ids)
+    #     break
     breakpoint()

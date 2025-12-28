@@ -10,6 +10,7 @@ GENVIDEO_PIKA = {
     "fake": {
         "train": ["Pika"],
         "val":   ["Pika"],
+        # "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -161,17 +162,20 @@ REALDIST_PIKA = {
             "RealVSR",
             "MSR-VTT",
             "Youku",
-            "Kinetics-400"
+            "Kinetics-400",
+            "GenBuster-200K-benchmark",
+            "GenBuster-200K-test",
         ]
     },
     "fake": {
         "train": ["Pika"],
         "val":   ["Pika"],
+        # "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
             "MoonValley", 
-            "HotShot",
+            # "HotShot",
             "Show_1",
             "Gen2", 
             "Crafter",
@@ -194,17 +198,20 @@ REALDIST_I_PIKA = {
             "RealVSR",
             "MSR-VTT",
             "Youku",
-            "Kinetics-400"
+            "Kinetics-400",
+            "GenBuster-200K-benchmark",
+            "GenBuster-200K-test",
         ]
     },
     "fake": {
         "train": ["Pika"],
         "val":   ["Pika"],
+        # "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
             "MoonValley", 
-            "HotShot",
+            # "HotShot",
             "Show_1",
             "Gen2", 
             "Crafter",
@@ -227,17 +234,20 @@ REALDIST_U_PIKA = {
             "RealVSR",
             "MSR-VTT",
             "Youku",
-            "Kinetics-400"
+            "Kinetics-400",
+            "GenBuster-200K-benchmark",
+            "GenBuster-200K-test",
         ]
     },
     "fake": {
         "train": ["Pika"],
         "val":   ["Pika"],
+        # "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
             "MoonValley", 
-            "HotShot",
+            # "HotShot",
             "Show_1",
             "Gen2", 
             "Crafter",

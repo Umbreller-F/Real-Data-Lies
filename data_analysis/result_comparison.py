@@ -33,24 +33,39 @@ def main():
     # }
 
     CSV_CONFIG = {
-        'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'Kinetics-400',
-        'results/test/video-classifier/RealDist-I-Pika-timesformer-ssv2/RealDist-avg.csv': 'InternVid-AES',
-        'results/test/video-classifier/RealDist-U-Pika-timesformer-ssv2/RealDist-avg.csv': 'Uniform',
+        'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'Kinetics-400',
+        # 'results/test/video-classifier/GenVideo-Youku-Pika-timesformer-ssv2/RealDist-avg.csv': 'Youku',
+        # 'results/test/video-classifier/RealDist-Pika-timesformer-ssv2/RealDist-avg.csv': 'LSVQ',
+        'results/test/video-classifier/RealDist-I-Pika-demamba/RealDist-avg.csv': 'InternVid-AES',
+        # 'results/test/video-classifier/RealDist-U-Pika-demamba/RealDist-avg.csv': 'Uniform',
     }
+
+    # CSV_CONFIG = {
+    #     'results/test/image-classifier/GenVideo-Pika-npr/RealDist-avg.csv': 'npr',
+    #     'results/test/image-classifier/GenVideo-Pika-dinov2/RealDist-avg.csv': 'dinov2',
+    #     'results/test/image-classifier/GenVideo-Pika-dinov3/RealDist-avg.csv': 'dinov3',
+    #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
+    #     'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
+    #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
+    #     'results/test/nsg-vd/RealDist-avg.csv': 'nsgvd',
+    # }
     
     # Define the order of datasets (use exact names as in CSV files)
     DATASET_ORDER = [
-        'Kinetics-Avg',
+        'Kinetics-400-Avg',
         'Youku-Avg',
-        'MSR-Avg',
+        'MSR-VTT-Avg',
         'LSVQ-Avg',
         'LSVQ_1080p-Avg', 
-        'InternVid-Avg',
+        'InternVid-AES-Avg',
         'RealVSR-Avg',
+        'GenBuster-200K-benchmark-Avg',
+        'GenBuster-200K-test-Avg',
     ]
 
     results_dir = 'data_analysis/results/auc_comparison/'
-    save_name = 'tsf-ssv2'
+    save_name = 'demamba'
+    bar_fontsize = 6
     
     # Store all data
     all_data = []
@@ -118,7 +133,7 @@ def main():
             if value > 0:
                 plt.text(bar.get_x() + bar.get_width()/2, 
                         value + 0.5, f'{value:.2f}', 
-                        ha='center', va='bottom', fontsize=6, fontweight='bold')
+                        ha='center', va='bottom', fontsize=bar_fontsize, fontweight='bold')
     
     # Customize plot
     plt.title('AUROC Comparison Across Datasets', fontsize=16, fontweight='bold', pad=20)

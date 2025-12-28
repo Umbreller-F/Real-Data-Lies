@@ -148,7 +148,7 @@ def test(cfg: DictConfig):
     for row in results:
         dataset_name = row[0]
         if '-' in dataset_name:
-            real_model = dataset_name.split('-')[0]
+            real_model = '-'.join(dataset_name.split('-')[:-1])
             if real_model not in grouped_results:
                 grouped_results[real_model] = []
             grouped_results[real_model].append(row)
