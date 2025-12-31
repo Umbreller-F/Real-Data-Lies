@@ -7,10 +7,10 @@ import torch.nn as nn
 import torch
 import logging
 
-logging.getLogger("transformers_modules.OpenGVLab.VideoMAEv2-Base").setLevel(logging.WARNING)
+logging.getLogger("transformers_modules").setLevel(logging.ERROR)
 
 
-class VideoMAEv2Classifier(nn.Module):
+class VideoMAEv2(nn.Module):
     def __init__(self,
                  model_name: Literal['VideoMAEv2-Base', 'VideoMAEv2-Large'] = 'VideoMAEv2-Base',
                  output_dim: int = 1,
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # with torch.no_grad():
     #     outputs = model(**inputs)
     # print("Logits shape:", outputs.shape)
-    model = VideoMAEv2Classifier()
+    model = VideoMAEv2()
     summary(model)
     print(model.processor)
     model = model.cuda()

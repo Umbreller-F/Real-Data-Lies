@@ -166,10 +166,11 @@ if __name__ == '__main__':
     model = XCLIP_DeMamba()
     summary(model)
     model = model.cuda()
+    print(model.processor)
+    breakpoint()
     tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
     output = model(tensor)
     print(output.shape)
-    print(model.processor)
 
     from transformers import AutoProcessor
     processor = AutoProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)

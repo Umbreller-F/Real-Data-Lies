@@ -20,13 +20,14 @@ warnings.filterwarnings("ignore", message="`resume_download` is deprecated", cat
 
 
 class ImageDataset(Dataset):
-    def __init__(self, data_path:str, dataset_name:str="GenVideo", generation_model:str="None", frame_sample_rate: int = 4,
+    def __init__(self, processor, data_path:str, dataset_name:str="GenVideo", generation_model:str="None", frame_sample_rate: int = 4,
                  mode: str = "train", num_frames: int = 8, load_len: int = None, input_shape: tuple = (224, 224)):
         super().__init__()
         self.data_path = data_path
         self.dataset_name = dataset_name
         self.generation_model = generation_model
         self.mode = mode
+        self.processor = processor
         self.num_frames = num_frames
         self.frame_sample_rate = frame_sample_rate
         self.input_shape = input_shape
@@ -39,6 +40,20 @@ class ImageDataset(Dataset):
                             mean=[0.485, 0.456, 0.406],    # Mean of ImageNet
                             std=[0.229, 0.224, 0.225]),    # Std of ImageNet
                             ])
+        self.aug = va.Sequential([
+            va.Sometimes(0.5, va.HorizontalFlip()),
+            va.Sometimes(0.5, va.VerticalFlip()),
+            va.Sometimes(0.1, va.InvertColor()),
+            va.Sometimes(0.1, va.RandomRotate(degrees=10)),
+            va.Sometimes(1.0, va.GaussianBlur(sigma=0.1)),
+            va.Sometimes(
+                0.1,
+                va.OneOf([
+                    va.Salt(ratio=100),
+                    va.Pepper(ratio=100)
+                ])
+            )
+        ])
         self.label = get_label_from_generation_model(self.generation_model)
         # data_dir
         self.base_dir = os.path.join(
@@ -92,13 +107,20 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, idx: int) -> np.ndarray:
         image_path = self.image_paths[idx]
+
         img = Image.open(image_path).convert('RGB')
-        if self.transform:
+
+        if self.mode == "train":
+            img = self.aug([img])[0]
+        
+        if self.processor is None:
             img = self.transform(img)
-        img_array = np.asarray(img)
+        else:
+            img = self.processor(images=img, return_tensors="pt").pixel_values[0]
+        
         label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
         img_id = '/'.join(image_path.split('/')[-2:])
-        return img_array, label, img_id
+        return img, label, img_id
 
 
 class VideoDataset(Dataset):
@@ -378,6 +400,7 @@ def get_paired_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load
                 )
     elif feature_type == "image":
         fake_dataset = ImageDataset(
+            processor=processor,
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=generation_model,
@@ -389,6 +412,7 @@ def get_paired_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load
             )
         real_len = int(len(fake_dataset) / pn_ratio)
         real_dataset = ImageDataset(
+            processor=processor,
             data_path=data_cfg.data_path, 
             dataset_name=data_cfg.dataset_name,
             generation_model=real_model,
@@ -508,17 +532,16 @@ if __name__ == "__main__":
             'no_resize': True
         }
     })
-    # import logging
-    # logging.getLogger("transformers").setLevel(logging.ERROR)
+    
     logger.debug("Testing VideoDataset...")
     demo_dataset = VideoDataset(processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True), 
-                                data_path="../Data/RealDist", dataset_name="RealDist",  generation_model="InternVid-AES", mode="train")
-    demo_loader = DataLoader(demo_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
-                             worker_init_fn=seed_worker, generator=generator)
-    for idx, batch in enumerate(demo_loader):
-        videos, labels, video_ids = batch
-        print(video_ids)
-        break
+                                data_path="../Data/RealDist", dataset_name="RealDist",  generation_model="Uniform", mode="train")
+    # demo_loader = DataLoader(demo_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
+    #                          worker_init_fn=seed_worker, generator=generator)
+    # for idx, batch in enumerate(demo_loader):
+    #     videos, labels, video_ids = batch
+    #     print(video_ids)
+    #     break
     # logger.debug("Testing get_video_dataset...")
     # processsor = AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", use_fast=False, local_files_only=True)
     # real_fake_dataset = get_video_dataset(cfg.data, generation_model=cfg.data.generation_model, 
@@ -544,12 +567,13 @@ if __name__ == "__main__":
     #                                       processor=AutoImageProcessor.from_pretrained("facebook/timesformer-base-finetuned-ssv2", 
     #                                                                                    use_fast=False, local_files_only=True))
 
-    # logger.debug("Testing ImageDataset...")
-    # imagedataset_demo = ImageDataset(data_path=cfg.data.data_path, dataset_name=cfg.data.dataset_name, input_shape=tuple(cfg.data.input_shape), generation_model="Sora", mode="test")
-    # demo_loader = DataLoader(imagedataset_demo, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
-    # for batch in demo_loader:
-    #     images, labels, image_ids = batch
-    #     print(images.shape)
-    #     print(image_ids)
-    #     break
+    logger.debug("Testing ImageDataset...")
+    imagedataset_demo = ImageDataset(processor=AutoImageProcessor.from_pretrained('facebook/dinov2-base', local_files_only=True),
+        data_path=cfg.data.data_path, dataset_name=cfg.data.dataset_name, input_shape=tuple(cfg.data.input_shape), generation_model="Pika", mode="train")
+    demo_loader = DataLoader(imagedataset_demo, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    for batch in demo_loader:
+        images, labels, image_ids = batch
+        print(images.shape)
+        print(image_ids)
+        break
     breakpoint()

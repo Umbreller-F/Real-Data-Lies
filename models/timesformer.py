@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch
 
 
-class TimesformerBinaryClassifier(nn.Module):
+class TimeSformer(nn.Module):
     def __init__(self,
                  model_name: Literal['TimeSformer-k400', 'TimeSformer-ssv2'] = 'TimeSformer-k400',
                  pretrained: bool = True,
@@ -83,9 +83,11 @@ class TimesformerBinaryClassifier(nn.Module):
 
 if __name__ == "__main__":
     logger.debug("This module is not meant to be run directly. Import it in your code to use the models.")
-    model = TimesformerBinaryClassifier(model_name='timesformer-k400', freeze_backbone=False)
+    model = TimeSformer(model_name='TimeSformer-k400', freeze_backbone=False)
     from transformers.models.videomae.image_processing_videomae import VideoMAEImageProcessor
     summary(model)
+    print(model.processor)
+    breakpoint()
     model = model.cuda()
     tensor = torch.tensor(np.random.rand(1, 8, 3, 224, 224), dtype=torch.float32).cuda()
     with torch.no_grad():

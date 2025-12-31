@@ -3,10 +3,10 @@ from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS
 # from data.video_dataset import get_video_dataset, get_composite_video_dataset
 from data.dataset import get_single_dataset
 from omegaconf import DictConfig, OmegaConf
-from models.timesformer import TimesformerBinaryClassifier
-from models.videomaev2 import VideoMAEv2Classifier
+from models.timesformer import TimeSformer
+from models.videomaev2 import VideoMAEv2
 from models.demamba import XCLIP_DeMamba
-from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
+from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from utils.train_utils import *
 from torch.utils.data import DataLoader
@@ -36,15 +36,15 @@ def test(cfg: DictConfig):
     # region Load Model
     logger.info(f"Loading model: {cfg.model.name}")
     if 'TimeSformer' in cfg.model.name:
-        model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+        model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
-        model = VideoMAEv2Classifier()
+        model = VideoMAEv2()
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
     elif cfg.model.name == "DINOv2":
-        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+        model = DINOv2()
     elif cfg.model.name == "DINOv3":
-        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
+        model = DINOv3()
     elif cfg.model.name == "NPR":
         model = resnet50()
     else:

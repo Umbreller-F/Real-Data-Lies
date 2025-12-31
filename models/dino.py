@@ -1,169 +1,117 @@
+import logging
 import torch
 import torch.nn as nn
 import numpy as np
 from typing import Literal
 from torchinfo import summary
 from loguru import logger
-import logging
+from copy import deepcopy
+from transformers import AutoImageProcessor, AutoModel
 
 logging.getLogger("dinov2").setLevel(logging.WARNING)
 logging.getLogger("dinov3").setLevel(logging.WARNING)
 
 
-class DINOv2WithLinearProbe(nn.Module):
-    def __init__(
-        self,
-        model_name: Literal[
-            'dinov2_vits14', 'dinov2_vitb14', 'dinov2_vitl14', 'dinov2_vitg14',
-            'dinov2_vits14_reg', 'dinov2_vitb14_reg', 'dinov2_vitl14_reg', 'dinov2_vitg14_reg'
-        ],
-        freeze_backbone: bool = True,
-        num_layers_to_use: int = None
-    ):
-        """DINOv2 model with a binary classification head."""
+class DINOv2(nn.Module):
+    def __init__(self,
+                 model_name: Literal['dinov2-base', 'dinov2-large'] = 'dinov2-large',
+                 output_dim: int = 1,
+                 dropout_rate: float = 0.1):
         super().__init__()
-        
-        # Load pretrained DINOv2 model
-        self.backbone = torch.hub.load(
-            '/home/ziyuanfang/.cache/torch/hub/facebookresearch_dinov2_main',
-            model=model_name,
-            source='local'
+        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}', local_files_only=True)
+        self.model = AutoModel.from_pretrained(f'facebook/{model_name}', local_files_only=True)
+        embed_dim = self.model.config.hidden_size
+        # Replace classification head with custom binary classifier
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout_rate),
+            nn.Linear(embed_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_dim)
         )
-        
-        # Determine embedding dimension based on model type
-        if 'vits14' in model_name:
-            embed_dim = 384
-            num_blocks = 12  # Small model has 12 transformer blocks
-        elif 'vitb14' in model_name:
-            embed_dim = 768
-            num_blocks = 12  # Base model has 12 transformer blocks
-        elif 'vitl14' in model_name:
-            embed_dim = 1024
-            num_blocks = 24  # Large model has 24 transformer blocks
-        elif 'vitg14' in model_name:
-            embed_dim = 1536
-            num_blocks = 40  # Giant model has 40 transformer blocks
-        else:
-            raise ValueError(f"Unknown model type: {model_name}")
-        
-        # Store number of layers to use
-        self.num_layers_to_use = num_layers_to_use if num_layers_to_use is not None else num_blocks
-
-        # Modify the backbone to use only first n blocks
-        if self.num_layers_to_use < num_blocks:
-            # The transformer blocks are in backbone.blocks
-            self.backbone.blocks = self.backbone.blocks[:self.num_layers_to_use]
-            # Replace the norm layer with new LayerNorm
-            self.backbone.norm = nn.LayerNorm(embed_dim)
-
-        # Add binary classification head (Linear layer)
-        self.backbone.head = nn.Sequential(
-            nn.Linear(embed_dim, 1),
-        )
-        
-        # Freeze backbone parameters (only train classifier head)
-        if freeze_backbone:
-            for param in self.backbone.parameters():
-                param.requires_grad = False
-        
-        self.processor = None
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        predictions = self.backbone(x)
-        return predictions  # [batch_size, 1]
+    def forward(self, x):
+        embeddings = self.model(pixel_values=x).pooler_output
+        logits = self.classifier(embeddings)
+        return logits
+    
+    @property
+    def processor(self):
+        return deepcopy(self._processor)
 
 
-class DINOv3WithLinearProbe(nn.Module):
-    def __init__(
-        self,
-        model_name: Literal[
-            'dinov2_vits14', 'dinov3_vits16plus', 'dinov2_vitb14', 'dinov2_vitl14',
-            'dinov3_convnext_tiny', 'dinov3_convnext_small', 'dinov3_convnext_base', 'dinov3_convnext_large'
-        ],
-        freeze_backbone: bool = True,
-        num_layers_to_use: int = None
-    ):
-        """DINOv3 model with a binary classification head."""
+class DINOv3(nn.Module):
+    def __init__(self,
+                 model_name: Literal['dinov3-vitb16', 'dinov3-vitl16'] = 'dinov3-vitl16',
+                 output_dim: int = 1,
+                 dropout_rate: float = 0.1):
         super().__init__()
-        
-        # Load pretrained DINOv2 model
-        self.backbone = torch.hub.load(
-            '/home/ziyuanfang/.cache/torch/hub/facebookresearch_dinov3_main',
-            model=model_name,
-            source='local'
+        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
+        self.model = AutoModel.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
+        embed_dim = self.model.config.hidden_size
+        # Replace classification head with custom binary classifier
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout_rate),
+            nn.Linear(embed_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_dim)
         )
-        
-        # Determine embedding dimension based on model type
-        if 'vits16' in model_name:
-            embed_dim = 384
-            num_blocks = 12  # Small model has 12 transformer blocks
-        elif 'vitb16' in model_name:
-            embed_dim = 768
-            num_blocks = 12  # Base model has 12 transformer blocks
-        elif 'vitl16' in model_name:
-            embed_dim = 1024
-            num_blocks = 24  # Large model has 24 transformer blocks
-        elif 'convnext_tiny' in model_name:
-            embed_dim = 384
-            num_blocks = None
-        elif 'convnext_small' in model_name:
-            embed_dim = 768
-            num_blocks = None
-        elif 'convnext_base' in model_name:
-            embed_dim = 1024
-            num_blocks = None
-        elif 'convnext_large' in model_name:
-            embed_dim = 1536
-            num_blocks = None
-        else:
-            raise ValueError(f"Unknown model type: {model_name}")
-        
-        # Store number of layers to use
-        self.num_layers_to_use = num_layers_to_use if num_layers_to_use is not None else num_blocks
-
-        # Modify the backbone to use only first n blocks
-        if self.num_layers_to_use < num_blocks and 'vit' in model_name:
-            # The transformer blocks are in backbone.blocks
-            self.backbone.blocks = self.backbone.blocks[:self.num_layers_to_use]
-            # Replace the norm layer with new LayerNorm
-            self.backbone.norm = nn.LayerNorm(embed_dim)
-
-        # Add binary classification head (Linear layer)
-        self.backbone.head = nn.Sequential(
-            nn.Linear(embed_dim, 1),
-        )
-        
-        # Freeze backbone parameters (only train classifier head)
-        if freeze_backbone:
-            for param in self.backbone.parameters():
-                param.requires_grad = False
-
-        self.processor = None
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        predictions = self.backbone(x)
-        return predictions  # [batch_size, 1]
+    def forward(self, x):
+        embeddings = self.model(pixel_values=x).pooler_output
+        logits = self.classifier(embeddings)
+        return logits
+    
+    @property
+    def processor(self):
+        return deepcopy(self._processor)
 
 
 if __name__ == "__main__":
     logger.debug("This module is not meant to be run directly. Import it in your code to use the models.")
 
-    logger.debug("Testing DINOv2WithLinearProbe model...")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dinov2 = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
-    dinov2.to(device)
-    summary(dinov2)
+    # from PIL import Image
+    # import requests
 
-    input_tensor = torch.tensor(np.random.rand(32, 3, 224, 224), dtype=torch.float32).cuda()  # Example input tensor
-    output = dinov2(input_tensor)  # Forward pass
-    print("Output shape:", output.shape)  # Should print the shape of the output tensor
+    # url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
+    # image = Image.open(requests.get(url, stream=True).raw)
 
-    logger.debug("Testing DINOv3WithLinearProbe model...")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dinov3 = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
-    dinov3.to(device)
-    summary(dinov3)
-    
-    input_tensor = torch.tensor(np.random.rand(32, 3, 256, 256), dtype=torch.float32).cuda()  # Example input tensor
-    output = dinov3(input_tensor)  # Forward pass
-    print("Output shape:", output.shape)  # Should print the shape of the output tensor
+    # processor = AutoImageProcessor.from_pretrained('facebook/dinov2-base', 
+    #                                                local_files_only=True
+    #                                                )
+    # model = AutoModel.from_pretrained('facebook/dinov2-base', 
+    #                                   local_files_only=True
+    #                                   )
+    # summary(model)
+    # print(processor)
+    # raw_inputs = processor(images=image)
+    # breakpoint()
+
+    # inputs = processor(images=image, return_tensors="pt")
+    # outputs = model(**inputs)
+    # last_hidden_states = outputs.last_hidden_state
+
+    import torch
+    from transformers import AutoImageProcessor, AutoModel
+    from transformers.image_utils import load_image
+
+    url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+    image = load_image(url)
+
+    pretrained_model_name = "facebook/dinov3-vitl16-pretrain-lvd1689m"
+    processor = AutoImageProcessor.from_pretrained(pretrained_model_name, local_files_only=True)
+    model = AutoModel.from_pretrained(pretrained_model_name, local_files_only=True)
+
+    inputs = processor(images=image, return_tensors="pt").to(model.device)
+    with torch.inference_mode():
+        outputs = model(**inputs)
+
+    pooled_output = outputs.pooler_output
+    print("Pooled output shape:", pooled_output.shape)
+
+    breakpoint()

@@ -176,7 +176,7 @@ def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
         validation_time = end_time - start_time
         results.append([val_name.split("/")[0], val_name.split("/")[1], recall, f1, acc, precision, auroc])
     headers = ["Fake", "Real", "Recall", "F1", "Accuracy", "Precision", "AUROC"]
-    results.append(["Mean", "Mean", *[sum([x[i] for x in results])/len(results) for i in range(2, 7)]])
+    # results.append(["Mean", "Mean", *[sum([x[i] for x in results])/len(results) for i in range(2, 7)]])
     for result in results:
         fake, real = result[0], result[1]
         for header, value in zip(headers[2:], result[2:]):

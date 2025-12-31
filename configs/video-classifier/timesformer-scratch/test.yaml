@@ -19,7 +19,7 @@ trainer:
     weight_decay: 0.1
   loss_fn:
     name: "binary_cross_entropy"
-  val_check_interval: 2
+  val_check_interval: 1
   num_gpus: 1
   device_ids: [0,1,2,3]
 

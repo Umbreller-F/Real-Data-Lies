@@ -4,10 +4,10 @@ from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GEN
 from data.dataset import get_paired_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
-from models.timesformer import TimesformerBinaryClassifier
-from models.videomaev2 import VideoMAEv2Classifier
+from models.timesformer import TimeSformer
+from models.videomaev2 import VideoMAEv2
 from models.demamba import XCLIP_DeMamba
-from models.dino import DINOv2WithLinearProbe, DINOv3WithLinearProbe
+from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from loguru import logger
 from tqdm import tqdm
@@ -34,6 +34,7 @@ def main(cfg: DictConfig):
     logger.info('Training configuration:\n' + OmegaConf.to_yaml(cfg))
     writer = SummaryWriter(log_dir=log_dir)
 
+    set_seed(1958)
     generator = torch.Generator()
     generator.manual_seed(1958)
     
@@ -41,15 +42,15 @@ def main(cfg: DictConfig):
 
     # region Model
     if 'TimeSformer' in cfg.model.name:
-        model = TimesformerBinaryClassifier(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
+        model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
-        model = VideoMAEv2Classifier()
+        model = VideoMAEv2()
     elif cfg.model.name == "DeMamba":
         model = XCLIP_DeMamba()
     elif cfg.model.name == "DINOv2":
-        model = DINOv2WithLinearProbe('dinov2_vitb14', freeze_backbone=False, num_layers_to_use=None)
+        model = DINOv2()
     elif cfg.model.name == "DINOv3":
-        model = DINOv3WithLinearProbe('dinov3_vitb16', freeze_backbone=False, num_layers_to_use=None)
+        model = DINOv3()
     elif cfg.model.name == "NPR":
         model = resnet50()
     else:
@@ -107,8 +108,7 @@ def main(cfg: DictConfig):
                               processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
                               num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
                               vae=vae, recon_prop=recon_prop)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
-                            worker_init_fn=seed_worker, generator=generator)
+    val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion
 
@@ -118,6 +118,7 @@ def main(cfg: DictConfig):
     best_val_acc = - float("inf")
     early_stop_patience = 5
     no_improvement_count = 0
+    min_delta = 0.001
     # loss function and optimizer
     criterion = nn.BCEWithLogitsLoss()
     if cfg.trainer.optimizer.name == "adam":
@@ -145,26 +146,29 @@ def main(cfg: DictConfig):
                 
                 val_auroc = val_results[-1][-1]
                 val_acc = val_results[-1][-3]
+                
                 # Early stopping logic
-                if val_acc > best_val_acc or val_auroc > best_val_auroc:
+                if val_acc > best_val_acc + min_delta or val_auroc > best_val_auroc + min_delta:
                     no_improvement_count = 0  # Reset counter
                 else:
                     no_improvement_count += 1
                     logger.info(f"No improvement, consecutive count: {no_improvement_count}/{early_stop_patience}")
+                
                 # save epoch model
-                epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{epoch+1:2}.pth")
+                '''epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{str(epoch+1).zfill(3)}.pth")
                 os.makedirs(os.path.dirname(epoch_model_save_path), exist_ok=True)
-                torch.save(model.state_dict(), epoch_model_save_path)
+                torch.save(model.state_dict(), epoch_model_save_path)'''
+                
                 # save best model
-                if val_acc > best_val_acc:
-                    logger.info(f"Current acc ({val_acc:.4f}) > Best acc ({best_val_acc:.4f})")
+                if val_acc > best_val_acc + min_delta:
+                    logger.info(f"Current acc ({val_acc:.6f}) > Best acc ({best_val_acc:.6f})")
                     best_val_acc = val_acc
                     best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_acc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
                     torch.save(model.state_dict(), best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
-                if val_auroc > best_val_auroc:
-                    logger.info(f"Current auroc ({val_auroc:.4f}) > Best auroc ({best_val_auroc:.4f})")
+                if val_auroc > best_val_auroc + min_delta:
+                    logger.info(f"Current auroc ({val_auroc:.6f}) > Best auroc ({best_val_auroc:.6f})")
                     best_val_auroc = val_auroc
                     best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_auroc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
