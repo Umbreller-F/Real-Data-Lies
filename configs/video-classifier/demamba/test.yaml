@@ -7,6 +7,7 @@ hydra:
 
 model:
   name: "DeMamba"
+  Q_attr: False
 
 seed: 42
 trainer:
@@ -42,6 +43,9 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
+  num_degraded: 0
 
 ckpt_path: results/ckpts/baselines/standard-Pika-demamba/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-demamba"
@@ -52,3 +56,4 @@ revise: True
 inference:
   demo_path: "../Data/demo/sora2_frames"
   label: "fake"
+quality_grl: False

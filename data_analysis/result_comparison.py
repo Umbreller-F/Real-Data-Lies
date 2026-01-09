@@ -22,9 +22,9 @@ def main():
     # }
 
     # CSV_CONFIG = {
-    #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
+    #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2-NA/RealDist-avg.csv': 'timesformer-ssv2',
     #     'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
-    #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
+    #     'results/test/video-classifier/GenVideo-Pika-demamba-NA/RealDist-avg.csv': 'demamba',
     # }
 
     # CSV_CONFIG = {
@@ -32,14 +32,14 @@ def main():
     #     'results/test/video-classifier/RealDist-I-Pika-demamba/RealDist-avg.csv': 'InternVid-AES',
     # }
 
-    MODEL = 'demamba'
-    CSV_CONFIG = {
-        f'results/test/video-classifier/GenVideo-Pika-{MODEL}/RealDist-avg.csv': 'Kinetics-400',
-        # f'results/test/video-classifier/GenVideo-Youku-Pika-{MODEL}/RealDist-avg.csv': 'Youku',
-        # f'results/test/video-classifier/RealDist-Pika-{MODEL}/RealDist-avg.csv': 'LSVQ',
-        f'results/test/video-classifier/RealDist-I-Pika-{MODEL}/RealDist-avg.csv': 'InternVid-AES',
-        f'results/test/video-classifier/RealDist-U-Pika-{MODEL}/RealDist-avg.csv': 'Uniform',
-    }
+    # MODEL = 'demamba'
+    # CSV_CONFIG = {
+    #     f'results/test/video-classifier/GenVideo-Pika-{MODEL}/RealDist-avg.csv': 'Kinetics-400',
+    #     # f'results/test/video-classifier/GenVideo-Youku-Pika-{MODEL}/RealDist-avg.csv': 'Youku',
+    #     # f'results/test/video-classifier/RealDist-Pika-{MODEL}/RealDist-avg.csv': 'LSVQ',
+    #     f'results/test/video-classifier/RealDist-I-Pika-{MODEL}/RealDist-avg.csv': 'InternVid-AES',
+    #     f'results/test/video-classifier/RealDist-U-Pika-{MODEL}/RealDist-avg.csv': 'Uniform',
+    # }
 
     # CSV_CONFIG = {
     #     'results/test/image-classifier/GenVideo-Pika-npr/RealDist-avg.csv': 'npr',
@@ -50,6 +50,37 @@ def main():
     #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
     #     'results/test/nsg-vd/RealDist-avg.csv': 'nsgvd',
     # }
+
+    # CSV_CONFIG = {
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba/RealDist-avg.csv': 'InternVidAES',
+    #     'results/test/video-classifier/RealDist-I-Pika-demamba-NA/RealDist-avg.csv': 'InternVidAES-NA',
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba-QM/RealDist-avg.csv': 'InternVidAES-QM',
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba-NP/RealDist-avg.csv': 'InternVidAES-NP',
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba-NP-1/RealDist-avg.csv': 'InternVidAES-NP-1',
+    #     # 'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'K400',
+    #     # 'results/test/video-classifier/GenVideo-Pika-demamba-GRL/RealDist-avg.csv': 'K400-GRL',
+    #     # 'results/test/video-classifier/GenVideo-Pika-demamba-A3/RealDist-avg.csv': 'K400-A3',
+    #     'results/test/video-classifier/GenVideo-Youku-Pika-demamba-NA/RealDist-avg.csv': 'Youku-NA',
+    #     'results/test/video-classifier/GenVideo-Pika-demamba-NA/RealDist-avg.csv': 'K400-NA',
+    #     'results/test/video-classifier/RealDist-Pika-demamba-NA/RealDist-avg.csv': 'LSVQ-NA',
+    #     'results/test/video-classifier/RealDist-O-Pika-demamba-NA/RealDist-avg.csv': 'OpenVidHD-NA',
+    # }
+
+    # CSV_CONFIG = {
+    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
+    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2-NA/RealDist-avg.csv': 'videomaev2-NA',
+    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2-LR/RealDist-avg.csv': 'videomaev2-LR',
+    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2-NA-LR/RealDist-avg.csv': 'videomaev2-NA-LR',
+    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2-A2-LR/RealDist-avg.csv': 'videomaev2-A2-LR',
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba-QM/RealDist-avg.csv': 'demamba-QM',
+    #     # 'results/test/video-classifier/RealDist-I-Pika-demamba-NP/RealDist-avg.csv': 'demamba-NP',
+    # }    
+
+    CSV_CONFIG = {
+        'results/test/video-classifier/RealDist-I-Pika-demamba-NA/RealDist-avg.csv': 'InternVidAES-NA',
+        'results/test/video-classifier/RealDist-I-Pika-demamba-NA-DE1K/RealDist-avg.csv': 'InternVidAES-NA-DE1K',
+        'results/test/video-classifier/RealDist-I-Pika-demamba-NA-DE10K/RealDist-avg.csv': 'InternVidAES-NA-DE10K',
+    }
     
     # Define the order of datasets (use exact names as in CSV files)
     DATASET_ORDER = [
@@ -62,10 +93,11 @@ def main():
         'RealVSR-Avg',
         'GenBuster-200K-benchmark-Avg',
         # 'GenBuster-200K-test-Avg',
+        'OpenVidHD-Avg',
     ]
 
     results_dir = 'data_analysis/results/auc_comparison/'
-    save_name = 'demamba'
+    save_name = 'I_DE'
     bar_fontsize = 6
     
     # Store all data
@@ -137,7 +169,7 @@ def main():
                         ha='center', va='bottom', fontsize=bar_fontsize, fontweight='bold')
     
     # Customize plot
-    plt.title('AUROC Comparison Across Datasets', fontsize=16, fontweight='bold', pad=20)
+    plt.title(f'AUROC Comparison {save_name}', fontsize=16, fontweight='bold', pad=20)
     plt.xlabel('Dataset', fontsize=12, fontweight='bold')
     plt.ylabel('AUROC (%)', fontsize=12, fontweight='bold')
     # breakpoint()

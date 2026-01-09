@@ -13,6 +13,7 @@ import torch
 import torchvision
 from decord import VideoReader, cpu, gpu
 from tqdm import tqdm
+from PIL import Image
 
 random.seed(42)
 
@@ -265,6 +266,80 @@ def spatial_temporal_view_decomposition(
     return sampled_video, frame_inds
 
 
+def spatial_temporal_view_decomposition_from_frames(
+    frame_dir, sample_types, samplers, is_train=False, augment=False
+):
+    """
+    Load video from extracted frames directory
+    Args:
+        frame_dir: Directory containing extracted frames (e.g., frame_001.jpg, frame_002.jpg)
+        sample_types: View sampling configurations
+        samplers: Frame samplers
+        is_train: Whether in training phase
+        augment: Whether to apply data augmentation
+    Returns:
+        sampled_video: Dict of view tensors
+        frame_inds: Dict of sampled frame indices
+    """
+    # Get all frame files sorted
+    frame_files = []
+    for f in os.listdir(frame_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+            frame_files.append(f)
+    
+    # Sort frames by name
+    frame_files = sorted(frame_files, key=lambda x: int(''.join(filter(str.isdigit, x))))
+    total_frames = len(frame_files)
+    
+    if total_frames == 0:
+        raise ValueError(f"No frames found in {frame_dir}")
+    
+    # print(f"Loading {total_frames} frames from {frame_dir}")
+    
+    # Sample frame indices
+    frame_inds = {}
+    for stype in samplers:
+        frame_inds[stype] = samplers[stype](total_frames, is_train)
+    
+    # Combine all required frame indices
+    all_required_inds = []
+    for stype in samplers:
+        all_required_inds.extend(frame_inds[stype])
+    unique_inds = np.unique(all_required_inds)
+    
+    # Load only required frames
+    frame_dict = {}
+    for idx in unique_inds:
+        if idx >= total_frames:
+            idx = total_frames - 1  # Safety check
+        frame_path = os.path.join(frame_dir, frame_files[idx])
+        
+        # Load image
+        img = Image.open(frame_path)
+        img_array = np.array(img)
+        
+        # Convert to tensor
+        if len(img_array.shape) == 2:  # Grayscale
+            img_array = np.stack([img_array] * 3, axis=-1)
+        elif img_array.shape[2] == 4:  # RGBA
+            img_array = img_array[:, :, :3]
+        
+        frame_dict[idx] = torch.from_numpy(img_array)
+    
+    # Build video tensors for each view
+    video = {}
+    for stype in samplers:
+        imgs = [frame_dict[idx] for idx in frame_inds[stype]]
+        video[stype] = torch.stack(imgs, 0).permute(3, 0, 1, 2)  # [N, H, W, C] -> [C, N, H, W]
+    
+    # Apply view decomposition
+    sampled_video = {}
+    for stype, sopt in sample_types.items():
+        sampled_video[stype] = get_single_view(video[stype], stype, **sopt)
+    
+    return sampled_video, frame_inds
+
+
 import random
 
 import numpy as np
@@ -342,6 +417,7 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
         self.data_backend = opt.get("data_backend", "disk")
         self.augment = opt.get("augment", False)
         if self.data_backend == "petrel":
+            raise ImportError("petrel_client is not installed.")
             from petrel_client import client
 
             self.client = client.Client(enable_mc=True)
@@ -385,31 +461,50 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
                         filename = osp.join(self.data_prefix, filename)
                         self.video_infos.append(dict(filename=filename, label=label))
             except:
-                #### No Label Testing
-                video_filenames = []
-                for (root, dirs, files) in os.walk(self.data_prefix, topdown=True):
-                    for file in files:
-                        if file.endswith((".mp4", ".mov", ".webm")):
-                            video_filenames += [os.path.join(root, file)]
-                print(len(video_filenames))
-                video_filenames = sorted(video_filenames)
-                for filename in video_filenames:
-                    self.video_infos.append(dict(filename=filename, label=-1))
+                if "/Youku/" in self.data_prefix or "/WildScrape/" in self.data_prefix:
+                    video_filenames = os.listdir(self.data_prefix)
+                    print(len(video_filenames))
+                    video_filenames = sorted(video_filenames)
+                    for filename in video_filenames:
+                        self.video_infos.append(dict(filename=os.path.join(self.data_prefix, filename), label=-1))
+                else:
+                    #### No Label Testing
+                    video_filenames = []
+                    for (root, dirs, files) in os.walk(self.data_prefix, topdown=True):
+                        for file in files:
+                            if file.endswith((".mp4", ".mov", ".webm")):
+                                video_filenames += [os.path.join(root, file)]
+                    print(len(video_filenames))
+                    video_filenames = sorted(video_filenames)
+                    for filename in video_filenames:
+                        self.video_infos.append(dict(filename=filename, label=-1))
 
     def __getitem__(self, index):
         video_info = self.video_infos[index]
         filename = video_info["filename"]
         label = video_info["label"]
         try:
-            ## Read Original Frames
-            ## Process Frames
-            data, frame_inds = spatial_temporal_view_decomposition(
-                filename,
-                self.sample_types,
-                self.samplers,
-                self.phase == "train",
-                self.augment and (self.phase == "train"),
-            )
+            is_youku_frames = ('/Youku/' in filename or '/WildScrape/' in filename) and not (filename.endswith(('.mp4', '.mov', '.webm')))
+        
+            if is_youku_frames:
+                # Read from extracted frame directory
+                data, frame_inds = spatial_temporal_view_decomposition_from_frames(
+                    filename,
+                    self.sample_types,
+                    self.samplers,
+                    self.phase == "train",
+                    self.augment and (self.phase == "train"),
+                )
+            else:
+                ## Read Original Frames
+                ## Process Frames
+                data, frame_inds = spatial_temporal_view_decomposition(
+                    filename,
+                    self.sample_types,
+                    self.samplers,
+                    self.phase == "train",
+                    self.augment and (self.phase == "train"),
+                )
 
             for k, v in data.items():
                 data[k] = ((v.permute(1, 2, 3, 0) - self.mean) / self.std).permute(

@@ -1,19 +1,19 @@
 from utils.experiment_utils import set_seed, seed_worker
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA, REALDIST_O_PIKA
 # from data.video_dataset import get_video_dataset
-from data.dataset import get_paired_dataset
+from data.dataset import get_paired_dataset, QualityMatchedDataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimeSformer
 from models.videomaev2 import VideoMAEv2
-from models.demamba import XCLIP_DeMamba
+from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from loguru import logger
 from tqdm import tqdm
 from tabulate import tabulate
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from torchinfo import summary
 
 import torch.nn as nn
@@ -27,28 +27,36 @@ import os
 
 @hydra.main(config_path="configs/classifier-224x224", config_name="npr.yaml", version_base=None)
 def main(cfg: DictConfig):
-    log_dir = os.path.join(cfg.log_path, cfg.experiment_name)
+    time_info = time.strftime('%Y%m%d_%H%M%S')
+    log_dir = os.path.join(cfg.log_path, cfg.experiment_name, time_info)
     os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{cfg.model.name}_{time.strftime('%Y%m%d_%H%M%S')}.log")
+    log_file = os.path.join(log_dir, f"{cfg.experiment_name}_{time_info}.log")
     logger.add(log_file, format="{time} {level} {message}", level="INFO", rotation="10 MB", compression="zip")
     logger.info('Training configuration:\n' + OmegaConf.to_yaml(cfg))
     writer = SummaryWriter(log_dir=log_dir)
 
-    set_seed(1958)
+    set_seed(cfg.seed)
     generator = torch.Generator()
-    generator.manual_seed(1958)
+    generator.manual_seed(cfg.seed)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    quality_grl = cfg.get('quality_grl', False)
+    Q_attr = cfg.model.get('Q_attr', 0)
+    
     # region Model
     if 'TimeSformer' in cfg.model.name:
         model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
         model = VideoMAEv2()
     elif cfg.model.name == "DeMamba":
-        model = XCLIP_DeMamba()
+        if Q_attr == 0:
+            model = XCLIP_DeMamba(quality_grl=quality_grl)
+        elif Q_attr == 1:
+            model = XCLIP_DeMamba_Q1()
     elif cfg.model.name == "DINOv2":
         model = DINOv2()
+        torch.use_deterministic_algorithms(True, warn_only=True)
     elif cfg.model.name == "DINOv3":
         model = DINOv3()
     elif cfg.model.name == "NPR":
@@ -59,7 +67,7 @@ def main(cfg: DictConfig):
     if torch.cuda.device_count() >= cfg.trainer.num_gpus and cfg.trainer.num_gpus > 1:
         logger.info(f"Using {cfg.trainer.num_gpus} GPUs for data parallelism.")
         model = nn.DataParallel(model, device_ids=cfg.trainer.device_ids[:cfg.trainer.num_gpus])
-
+    logger.info(f"Model's procesor:\n{model.processor}")
     summary(model)
     # endregion
 
@@ -82,6 +90,9 @@ def main(cfg: DictConfig):
     elif cfg.data.dataset_name == "RealDist-U":
         if cfg.data.generation_model == "Pika":
             generation_models = REALDIST_U_PIKA
+    elif cfg.data.dataset_name == "RealDist-O":
+        if cfg.data.generation_model == "Pika":
+            generation_models = REALDIST_O_PIKA
     else:
         raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
     pn_ratio = 1
@@ -94,12 +105,37 @@ def main(cfg: DictConfig):
         vae = cfg.data.vae_model
     else:
         vae, recon_prop = None, None
-    train_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
-                                mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
-                                num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
-                                vae=vae, recon_prop=recon_prop)
-    train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
-                              worker_init_fn=seed_worker, generator=generator)
+    if cfg.data.get("quality_match", False):
+        logger.info('Enable quality matching for training...')
+        train_dataset = QualityMatchedDataset(
+            processor=model.processor,
+            data_path=cfg.data.data_path, 
+            dataset_name=cfg.data.dataset_name,
+            generation_model=real_model,
+            no_resize=cfg.data.no_resize,
+            mode="train", 
+            num_frames=cfg.data.num_frames,
+            sample_strategy=cfg.data.sample_strategy,
+            input_shape=tuple(cfg.data.input_shape),
+        )
+        train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers,
+                                  worker_init_fn=seed_worker, generator=generator)
+    else:
+        train_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model=fake_model, real_model=real_model, 
+                                    mode="train", load_len=cfg.data.train_load_len, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+        # breakpoint()
+        if cfg.data.get("add_degraded_dataset", False):
+            degraded_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-D', real_model='InternVid-AES-D', 
+                                    mode="train", load_len=cfg.data.get("num_degraded", 10000), pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, degraded_dataset])
+        train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
+                                  worker_init_fn=seed_worker, generator=generator)
     # val data
     val_dataloaders = {}
     real_model = generation_models["real"]["val"][0]
@@ -107,7 +143,7 @@ def main(cfg: DictConfig):
     val_dataset = get_paired_dataset(cfg.data, "val", generation_model=fake_model, real_model=real_model, 
                               processor=model.processor, pn_ratio=pn_ratio, load_len=cfg.data.val_load_len,
                               num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
-                              vae=vae, recon_prop=recon_prop)
+                              vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,)
     val_loader = DataLoader(val_dataset, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
     val_dataloaders[f"{fake_model}/{real_model}"] = val_loader
     # endregion
@@ -115,12 +151,16 @@ def main(cfg: DictConfig):
     # region Train
     global_step = 0
     best_val_auroc = - float("inf")
-    best_val_acc = - float("inf")
+    best_val_f1 = - float("inf")
     early_stop_patience = 5
     no_improvement_count = 0
     min_delta = 0.001
     # loss function and optimizer
     criterion = nn.BCEWithLogitsLoss()
+    if quality_grl:
+        quality_score_criterion = nn.MSELoss()
+    else:
+        quality_score_criterion = None
     if cfg.trainer.optimizer.name == "adam":
         optimizer = optim.Adam(model.parameters(), lr=cfg.trainer.optimizer.lr, weight_decay=cfg.trainer.optimizer.weight_decay)
     elif cfg.trainer.optimizer.name == "adamW":
@@ -131,13 +171,13 @@ def main(cfg: DictConfig):
     # train logics
     with tqdm(range(cfg.trainer.max_epochs), desc="Epochs", unit="epoch", position=0) as epoch_pbar:
         for epoch in epoch_pbar:
-            train_results = train_classifer(model, train_loader, optimizer, criterion, device, writer, global_step, val_dataloaders, criterion, cfg)
+            train_results = train_classifer(model, train_loader, optimizer, device, writer, global_step, criterion, cfg.trainer.max_epochs, quality_grl, quality_score_criterion, Q_attr)
             global_step = train_results["global_step"]
             train_info = " | ".join([f"{key}: {value:.4f}" if isinstance(value, float) else f"{key}: {value}"
                          for key, value in train_results.items()])
             
             if (epoch+1) % cfg.trainer.val_check_interval == 0:
-                headers, val_results, best_threshold = val_classifer(model, val_dataloaders, criterion, device, writer, global_step)
+                headers, val_results, best_threshold = val_classifer(model, val_dataloaders, criterion, device, writer, global_step, quality_grl, Q_attr)
                 val_info = tabulate(val_results, headers=headers, tablefmt="grid")
 
                 logger.info(
@@ -145,10 +185,10 @@ def main(cfg: DictConfig):
                 )
                 
                 val_auroc = val_results[-1][-1]
-                val_acc = val_results[-1][-3]
+                val_f1 = val_results[-1][-3]
                 
                 # Early stopping logic
-                if val_acc > best_val_acc + min_delta or val_auroc > best_val_auroc + min_delta:
+                if val_f1 > best_val_f1 + min_delta or val_auroc > best_val_auroc + min_delta:
                     no_improvement_count = 0  # Reset counter
                 else:
                     no_improvement_count += 1
@@ -160,20 +200,20 @@ def main(cfg: DictConfig):
                     "best_threshold": float(best_threshold),
                     "epoch": epoch + 1
                 }
-                '''epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{str(epoch+1).zfill(3)}.pth")
+                epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{str(epoch+1).zfill(3)}.pth")
                 os.makedirs(os.path.dirname(epoch_model_save_path), exist_ok=True)
-                torch.save(checkpoint, epoch_model_save_path)'''
+                torch.save(checkpoint, epoch_model_save_path)
                 
                 # save best model
-                if val_acc > best_val_acc + min_delta:
-                    logger.info(f"Current acc ({val_acc:.6f}) > Best acc ({best_val_acc:.6f})")
-                    best_val_acc = val_acc
-                    best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_acc_ckpt.pth")
+                if val_f1 > best_val_f1 + min_delta:
+                    logger.info(f"Current F1 ({val_f1:.6f}) > Best F1 ({best_val_f1:.6f})")
+                    best_val_f1 = val_f1
+                    best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_f1_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
                     torch.save(checkpoint, best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
                 if val_auroc > best_val_auroc + min_delta:
-                    logger.info(f"Current auroc ({val_auroc:.6f}) > Best auroc ({best_val_auroc:.6f})")
+                    logger.info(f"Current AUROC ({val_auroc:.6f}) > Best AUROC ({best_val_auroc:.6f})")
                     best_val_auroc = val_auroc
                     best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_auroc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)

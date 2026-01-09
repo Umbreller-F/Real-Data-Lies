@@ -10,6 +10,9 @@ from models.mamba_base import MambaConfig, ResidualBlock
 import torch.nn.init as init
 from clip import clip
 import math
+from copy import deepcopy
+from models.grl import GradientReverseLayer
+
 
 def create_reorder_index(N, device):
     new_order = []
@@ -31,7 +34,7 @@ def reorder_data(data, N):
 
 class XCLIP_DeMamba(nn.Module):
     def __init__(
-        self, channel_size=768, class_num=1
+        self, channel_size=768, class_num=1, quality_grl=False
     ):
         super(XCLIP_DeMamba, self).__init__()
         self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
@@ -46,7 +49,20 @@ class XCLIP_DeMamba(nn.Module):
         self.fc_norm2 = nn.LayerNorm(768)
         self.initialize_weights(self.fc1)
         self.dropout = nn.Dropout(p=0.0)
-        self.processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True ).image_processor
+        self._processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True).image_processor
+        #debug
+        # self._processor = None
+
+        self.quality_grl = quality_grl
+        if self.quality_grl:
+            self.grl = GradientReverseLayer()
+            # self.score_fc = nn.Linear((self.patch_nums+1)*channel, 1)
+            self.score_fc = nn.Sequential(
+                nn.Linear((self.patch_nums+1)*channel, channel),
+                nn.ReLU(),
+                nn.Linear(channel, 1),
+            )
+
 
     def initialize_weights(self, module):
         for m in module.modules():
@@ -62,7 +78,7 @@ class XCLIP_DeMamba(nn.Module):
                 init.constant_(m.weight, 1)
                 init.constant_(m.bias, 0)
 
-    def forward(self, x):
+    def forward(self, x, alpha=1.0):
         b, t, _, h, w = x.shape
         images = x.view(b * t, 3, h, w)
         outputs = self.encoder(images, output_hidden_states=True)
@@ -94,8 +110,107 @@ class XCLIP_DeMamba(nn.Module):
         pred = self.fc1(video_level_features)
         pred = self.dropout(pred)
 
+        if self.quality_grl:
+            feat_grl = self.grl(video_level_features, alpha)
+            pred_score_raw = self.score_fc(feat_grl)
+            pred_score = torch.sigmoid(pred_score_raw)
+            return pred, pred_score
+
         return pred
 
+    @property
+    def processor(self):
+        return deepcopy(self._processor)
+
+
+class XCLIP_DeMamba_Q1(nn.Module):
+    def __init__(
+        self, channel_size=768, class_num=1, 
+    ):
+        super(XCLIP_DeMamba_Q1, self).__init__()
+        self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
+        blocks = []
+        channel = 768
+        self.fusing_ratios = 1
+        self.patch_nums = (14//self.fusing_ratios)**2
+        self.mamba_configs = MambaConfig(d_model=channel)
+        self.mamba = ResidualBlock(config = self.mamba_configs)
+
+        self.attr_embed_dim = channel  # 768
+        self.attr_mlp = nn.Sequential(
+            nn.Linear(3, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, self.attr_embed_dim),
+            nn.ReLU()
+        )
+        total_input_dim = (self.patch_nums + 1) * channel + self.attr_embed_dim
+
+        self.fc1 = nn.Linear(total_input_dim, class_num)
+        self.fc_norm = nn.LayerNorm(self.patch_nums*channel)
+        self.fc_norm2 = nn.LayerNorm(768)
+        self.initialize_weights(self.fc1)
+        self.dropout = nn.Dropout(p=0.0)
+        self._processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True).image_processor
+
+
+    def initialize_weights(self, module):
+        for m in module.modules():
+            if isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Conv2d):
+                init.kaiming_uniform_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                init.constant_(m.weight, 1)
+                init.constant_(m.bias, 0)
+
+    def forward(self, x, attributes):
+        b, t, _, h, w = x.shape
+        images = x.view(b * t, 3, h, w)
+        outputs = self.encoder(images, output_hidden_states=True)
+        sequence_output = outputs['last_hidden_state'][:,1:,:]
+        _, _, c = sequence_output.shape
+
+        global_feat = outputs['pooler_output'].reshape(b, t, -1)
+        global_feat = global_feat.mean(1)
+        global_feat = self.fc_norm2(global_feat)
+
+        sequence_output = sequence_output.view(b, t, -1, c)
+        _, _, f_w, _ = sequence_output.shape
+        f_h, f_w = int(math.sqrt(f_w)), int(math.sqrt(f_w))
+
+        s = f_h//self.fusing_ratios
+        sequence_output = sequence_output.view(b, t, self.fusing_ratios, s, self.fusing_ratios, s, c)
+        x = sequence_output.permute(0, 2, 4, 1, 3, 5, 6).contiguous().view(b*s*s, t, -1, c)
+        b_l = b*s*s
+        
+        x = reorder_data(x, self.fusing_ratios)
+        x = x.permute(0, 2, 1, 3).contiguous().view(b_l, -1, c)
+        res = self.mamba(x)
+
+        video_level_features = res.mean(1)
+        video_level_features = video_level_features.view(b, -1)
+        video_level_features = self.fc_norm(video_level_features)
+
+        # attributes shape: [B, 3] -> [B, 768]
+        attr_feat = self.attr_mlp(attributes) 
+        
+        # [Global Feature, Mamba Feature, Attribute Feature]
+        combined_features = torch.cat((global_feat, video_level_features, attr_feat), dim=1)
+        # video_level_features = torch.cat((global_feat, video_level_features), dim=1)
+
+        pred = self.fc1(combined_features)
+        pred = self.dropout(pred)
+
+        return pred
+
+    @property
+    def processor(self):
+        return deepcopy(self._processor)
 
 
 class CLIP_DeMamba(nn.Module):
@@ -162,15 +277,23 @@ class CLIP_DeMamba(nn.Module):
 
 if __name__ == '__main__':
     from torchinfo import summary
-    model = XCLIP_DeMamba()
+    # model = XCLIP_DeMamba()
+    # summary(model)
+    # model = model.cuda()
+    # print(model.processor)
+    # breakpoint()
+    # tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
+    # output = model(tensor)
+    # print(output.shape)
+
+    # processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True).image_processor
+    # print(processor)
+    # breakpoint()
+
+    from torchinfo import summary
+    model = XCLIP_DeMamba(quality_grl=True)
     summary(model)
     model = model.cuda()
-    print(model.processor)
-    breakpoint()
     tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
     output = model(tensor)
-    print(output.shape)
-
-    processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True ).image_processor
-    print(processor)
     breakpoint()

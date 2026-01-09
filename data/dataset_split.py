@@ -166,6 +166,7 @@ REALDIST_PIKA = {
             "Kinetics-400",
             "GenBuster-200K-benchmark",
             "GenBuster-200K-test",
+            "OpenVidHD",
         ]
     },
     "fake": {
@@ -238,6 +239,42 @@ REALDIST_U_PIKA = {
             "Kinetics-400",
             "GenBuster-200K-benchmark",
             "GenBuster-200K-test",
+        ]
+    },
+    "fake": {
+        "train": ["Pika"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
+        "test":  [
+            "ModelScope", 
+            "MorphStudio",  
+            "MoonValley", 
+            # "HotShot",
+            "Show_1",
+            "Gen2", 
+            "Crafter",
+            "Lavie", 
+            "Sora", 
+            "WildScrape"
+        ]
+    },
+}
+
+REALDIST_O_PIKA = {
+    "real": {
+        "train": ["OpenVidHD"],
+        "val":   ["OpenVidHD"],
+        "test":  [
+            "LSVQ",
+            "LSVQ_1080p",
+            "InternVid-AES",
+            "RealVSR",
+            "MSR-VTT",
+            "Youku",
+            "Kinetics-400",
+            "GenBuster-200K-benchmark",
+            "GenBuster-200K-test",
+            "OpenVidHD",
         ]
     },
     "fake": {

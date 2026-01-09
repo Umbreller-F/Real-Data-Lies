@@ -92,6 +92,7 @@ if __name__ == "__main__":
     dopt["data_prefix"] = args.input_video_dir
 
     dataset = ViewDecompositionDataset(dopt)
+    # breakpoint()
 
     g = torch.Generator()
     g.manual_seed(1958)

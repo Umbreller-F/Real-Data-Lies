@@ -7,6 +7,7 @@ hydra:
 
 model:
   name: "DeMamba"
+  Q_attr: False
 
 seed: 42
 trainer:
@@ -43,6 +44,11 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
+  aug_type: 1
+  add_degraded_dataset: False
+  num_degraded: 0
   
 task_type: standard # standard / unbalance
 debug: False
@@ -51,3 +57,4 @@ save_ckpt_dir: "./results/ckpts/baselines/${experiment_name}/"
 log_path: "./results/logs/baselines/"
 
 revise: True
+quality_grl: False

@@ -43,6 +43,7 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  use_aug: True
   
 task_type: standard # standard / unbalance
 debug: False

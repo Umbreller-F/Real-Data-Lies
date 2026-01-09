@@ -14,7 +14,7 @@ trainer:
   max_epochs: 30
   optimizer:
     name: "adamW"
-    lr: 1e-5
+    lr: 1e-6
     betas: [0.9,0.999]
     weight_decay: 0.1
   loss_fn:
@@ -44,6 +44,8 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
   
 task_type: standard # standard / unbalance
 debug: False
@@ -52,3 +54,4 @@ save_ckpt_dir: "./results/ckpts/baselines/${experiment_name}/"
 log_path: "./results/logs/baselines/"
 
 revise: True
+quality_grl: False

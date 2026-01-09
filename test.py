@@ -5,7 +5,7 @@ from data.dataset import get_single_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimeSformer
 from models.videomaev2 import VideoMAEv2
-from models.demamba import XCLIP_DeMamba
+from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from utils.train_utils import *
@@ -31,6 +31,7 @@ def test(cfg: DictConfig):
     logger.info('Testing configuration:\n' + OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
+    Q_attr = cfg.model.get('Q_attr', 0)
     # endregion
 
     # region Load Model
@@ -40,7 +41,10 @@ def test(cfg: DictConfig):
     elif cfg.model.name == "VideoMAEv2":
         model = VideoMAEv2()
     elif cfg.model.name == "DeMamba":
-        model = XCLIP_DeMamba()
+        if Q_attr == 0:
+            model = XCLIP_DeMamba()
+        elif Q_attr == 1:
+            model = XCLIP_DeMamba_Q1()
     elif cfg.model.name == "DINOv2":
         model = DINOv2()
     elif cfg.model.name == "DINOv3":
@@ -49,6 +53,7 @@ def test(cfg: DictConfig):
         model = resnet50()
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
+    logger.info(f"Model's procesor:\n{model.processor}")
     # endregion
 
     # region Load ckpt
@@ -63,7 +68,11 @@ def test(cfg: DictConfig):
         model = nn.DataParallel(model, device_ids=cfg.trainer.device_ids[:cfg.trainer.num_gpus])
         model.load_state_dict(checkpoint["model_state_dict"])
     else:
-        model.load_state_dict(checkpoint["model_state_dict"])
+        missing, unexpected = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        if missing:
+            print(f"Missing keys in the model: {missing}")
+        if unexpected:
+            print(f"Unexpected keys in the state_dict: {unexpected}")
     model = model.to(device)
     model.eval()
     # endregion
@@ -109,7 +118,8 @@ def test(cfg: DictConfig):
     for data_model in data_models:
         test_dataset = get_single_dataset(
             cfg.data, mode="test", data_model=data_model, load_len=load_len,
-            num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize
+            num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize, 
+            Q_attr=Q_attr,
         )
         if len(test_dataset) == 0:
             logger.warning(f"Test data model {data_model} has no samples, skipping...")
@@ -126,7 +136,7 @@ def test(cfg: DictConfig):
 
     logger.info("Starting evaluation...")
     for data_model in tqdm(data_models, desc="Testing", unit="data model"):
-        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, best_threshold, device)
+        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, best_threshold, device, Q_attr=Q_attr)
     for real_model in generation_models["real"]["test"]:
         if real_model in empty_data_models:
             continue
@@ -150,7 +160,7 @@ def test(cfg: DictConfig):
     for row in results:
         dataset_name = row[0]
         if '/' in dataset_name:
-            real_model = dataset_name.split('/')[-1]
+            real_model = dataset_name.split('/')[0]
             if real_model not in grouped_results:
                 grouped_results[real_model] = []
             grouped_results[real_model].append(row)
@@ -198,17 +208,22 @@ def test(cfg: DictConfig):
 
 # region Test Func
 @torch.no_grad()
-def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, device = torch.device('cuda'), frames_per_video = 8):
+def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, device = torch.device('cuda'), frames_per_video = 8, Q_attr = 0):
     model.eval()
     all_labels = []
     all_predicted = []
     all_raw_preds = []
 
     for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
-        inputs, labels, sample_ids = batch
-        inputs, labels = inputs.float().to(device), labels.to(device)
+        if Q_attr == 0:
+            inputs, labels, sample_ids = batch
+            inputs, labels = inputs.float().to(device), labels.to(device)
 
-        logits = model(inputs)
+            logits = model(inputs)
+        elif Q_attr == 1:
+            inputs, labels, video_ids, Q_attr_scores = batch
+            inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
+            logits = model(inputs, Q_attr_scores)
 
         output_pred = logits[:,0].sigmoid().cpu()
         predicted = output_pred > best_threshold

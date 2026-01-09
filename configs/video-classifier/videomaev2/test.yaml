@@ -42,6 +42,8 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"

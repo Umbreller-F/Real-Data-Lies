@@ -12,13 +12,14 @@ logging.getLogger("transformers_modules").setLevel(logging.ERROR)
 
 class VideoMAEv2(nn.Module):
     def __init__(self,
-                 model_name: Literal['VideoMAEv2-Base', 'VideoMAEv2-Large'] = 'VideoMAEv2-Base',
+                 model_type: Literal['VideoMAEv2-Base', 'VideoMAEv2-Large'] = 'VideoMAEv2-Base',
                  output_dim: int = 1,
-                 dropout_rate: float = 0.1):
+                 dropout_rate: float = 0.1,
+                 enable_grl: bool = False):
         super().__init__()
-        config = AutoConfig.from_pretrained(f"OpenGVLab/{model_name}", trust_remote_code=True, local_files_only=True)
-        self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_name}", local_files_only=True)
-        self.model = AutoModel.from_pretrained(f"OpenGVLab/{model_name}", config=config, trust_remote_code=True, local_files_only=True)
+        config = AutoConfig.from_pretrained(f"OpenGVLab/{model_type}", trust_remote_code=True, local_files_only=True)
+        self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_type}", local_files_only=True)
+        self.model = AutoModel.from_pretrained(f"OpenGVLab/{model_type}", config=config, trust_remote_code=True, local_files_only=True)
         embed_dim = self.model.config.model_config['embed_dim']
         # Replace classification head with custom binary classifier
         self.classifier = nn.Sequential(
@@ -31,7 +32,7 @@ class VideoMAEv2(nn.Module):
             nn.Linear(128, output_dim)
         )
     
-    def forward(self, x, output_attentions: bool = False):
+    def forward(self, x, output_attentions: bool = False, grl_alpha: float = 1.0):
         embeddings = self.model(pixel_values=x.permute(0, 2, 1, 3, 4))
         logits = self.classifier(embeddings)
         return logits
@@ -70,3 +71,4 @@ if __name__ == "__main__":
     with torch.no_grad():
         logits = model(tensor)
     print("Logits shape:", logits.shape)
+    breakpoint()

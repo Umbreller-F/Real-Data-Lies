@@ -14,7 +14,7 @@ trainer:
   max_epochs: 30
   optimizer:
     name: "adamW"
-    lr: 1e-5
+    lr: 1e-6
     betas: [0.9,0.999]
     weight_decay: 0.1
   loss_fn:
@@ -43,6 +43,8 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
@@ -53,3 +55,4 @@ revise: True
 inference:
   demo_path: "../Data/demo/sora2_frames"
   label: "fake"
+quality_grl: False
