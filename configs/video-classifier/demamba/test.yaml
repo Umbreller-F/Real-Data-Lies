@@ -10,7 +10,7 @@ model:
 
 seed: 42
 trainer:
-  max_epochs: 10
+  max_epochs: 30
   optimizer:
     name: "adamW"
     lr: 1e-6

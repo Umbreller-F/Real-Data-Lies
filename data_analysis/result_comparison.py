@@ -32,23 +32,24 @@ def main():
     #     'results/test/video-classifier/RealDist-I-Pika-demamba/RealDist-avg.csv': 'InternVid-AES',
     # }
 
-    # CSV_CONFIG = {
-    #     'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'Kinetics-400',
-    #     # 'results/test/video-classifier/GenVideo-Youku-Pika-timesformer-ssv2/RealDist-avg.csv': 'Youku',
-    #     # 'results/test/video-classifier/RealDist-Pika-timesformer-ssv2/RealDist-avg.csv': 'LSVQ',
-    #     'results/test/video-classifier/RealDist-I-Pika-videomaev2/RealDist-avg.csv': 'InternVid-AES',
-    #     'results/test/video-classifier/RealDist-U-Pika-videomaev2/RealDist-avg.csv': 'Uniform',
-    # }
-
+    MODEL = 'demamba'
     CSV_CONFIG = {
-        'results/test/image-classifier/GenVideo-Pika-npr/RealDist-avg.csv': 'npr',
-        'results/test/image-classifier/GenVideo-Pika-dinov2/RealDist-avg.csv': 'dinov2',
-        'results/test/image-classifier/GenVideo-Pika-dinov3/RealDist-avg.csv': 'dinov3',
-        'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
-        'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
-        'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
-        'results/test/nsg-vd/RealDist-avg.csv': 'nsgvd',
+        f'results/test/video-classifier/GenVideo-Pika-{MODEL}/RealDist-avg.csv': 'Kinetics-400',
+        # f'results/test/video-classifier/GenVideo-Youku-Pika-{MODEL}/RealDist-avg.csv': 'Youku',
+        # f'results/test/video-classifier/RealDist-Pika-{MODEL}/RealDist-avg.csv': 'LSVQ',
+        f'results/test/video-classifier/RealDist-I-Pika-{MODEL}/RealDist-avg.csv': 'InternVid-AES',
+        f'results/test/video-classifier/RealDist-U-Pika-{MODEL}/RealDist-avg.csv': 'Uniform',
     }
+
+    # CSV_CONFIG = {
+    #     'results/test/image-classifier/GenVideo-Pika-npr/RealDist-avg.csv': 'npr',
+    #     'results/test/image-classifier/GenVideo-Pika-dinov2/RealDist-avg.csv': 'dinov2',
+    #     'results/test/image-classifier/GenVideo-Pika-dinov3/RealDist-avg.csv': 'dinov3',
+    #     'results/test/video-classifier/GenVideo-Pika-timesformer-ssv2/RealDist-avg.csv': 'timesformer-ssv2',
+    #     'results/test/video-classifier/GenVideo-Pika-videomaev2/RealDist-avg.csv': 'videomaev2',
+    #     'results/test/video-classifier/GenVideo-Pika-demamba/RealDist-avg.csv': 'demamba',
+    #     'results/test/nsg-vd/RealDist-avg.csv': 'nsgvd',
+    # }
     
     # Define the order of datasets (use exact names as in CSV files)
     DATASET_ORDER = [
@@ -64,8 +65,8 @@ def main():
     ]
 
     results_dir = 'data_analysis/results/auc_comparison/'
-    save_name = 'by_all_model'
-    bar_fontsize = 4
+    save_name = 'demamba'
+    bar_fontsize = 6
     
     # Store all data
     all_data = []

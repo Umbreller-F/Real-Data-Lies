@@ -6,7 +6,7 @@ import time
 import numpy as np
 from utils.mmd_utils import MMDu
 from loguru import logger
-from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, accuracy_score, precision_recall_curve
 import os
 import itertools
 
@@ -133,7 +133,7 @@ def train_dMMD_unbalance(model, train_dataloaders, optimizer, device, global_ste
 def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
     """
     return:
-        results = ["Fake", "Real", "Recall", "F1", "Accuracy", "Precision", "AUROC"]
+        results = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
     """
     model.eval()
     results = []
@@ -157,16 +157,21 @@ def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
                 running_val_loss += loss.item()
 
                 output_pred = logits[:,0].sigmoid().cpu()
-                predicted = output_pred > 0.5
                 
                 # Collect labels and predictions for metric calculation
                 all_labels.extend(labels.cpu().numpy())
-                all_predicted.extend(predicted.cpu().numpy())
                 all_raw_preds.extend(output_pred.cpu().numpy())
 
         avg_val_loss = running_val_loss / len(val_dataloader)
 
         # Calculate Precision, Recall, and F1 Score using sklearn
+        p, r, thresholds = precision_recall_curve(all_labels, all_raw_preds)
+        f1_scores = 2 * (p[:-1] * r[:-1]) / (p[:-1] + r[:-1] + 1e-10)
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx]
+        all_predicted = (np.array(all_raw_preds) >= best_threshold).astype(int)
+        logger.info(f"[{val_name}] Best Threshold: {best_threshold:.4f}")
+        
         precision = precision_score(all_labels, all_predicted)
         recall = recall_score(all_labels, all_predicted)
         f1 = f1_score(all_labels, all_predicted)
@@ -174,14 +179,14 @@ def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
         auroc = roc_auc_score(all_labels, all_raw_preds)
         end_time = time.time()
         validation_time = end_time - start_time
-        results.append([val_name.split("/")[0], val_name.split("/")[1], recall, f1, acc, precision, auroc])
-    headers = ["Fake", "Real", "Recall", "F1", "Accuracy", "Precision", "AUROC"]
+        results.append([val_name.split("/")[0], val_name.split("/")[1], recall, precision, f1, acc, auroc])
+    headers = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
     # results.append(["Mean", "Mean", *[sum([x[i] for x in results])/len(results) for i in range(2, 7)]])
     for result in results:
         fake, real = result[0], result[1]
         for header, value in zip(headers[2:], result[2:]):
             writer.add_scalar(f"val/{fake}_{real}_{header}", value, global_step=global_step)
-    return headers, results
+    return headers, results, best_threshold
 
 @torch.no_grad()
 def get_ref_features(model, ref_dataloader, ref_len=150):

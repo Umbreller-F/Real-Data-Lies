@@ -137,7 +137,7 @@ def main(cfg: DictConfig):
                          for key, value in train_results.items()])
             
             if (epoch+1) % cfg.trainer.val_check_interval == 0:
-                headers, val_results = val_classifer(model, val_dataloaders, criterion, device, writer, global_step)
+                headers, val_results, best_threshold = val_classifer(model, val_dataloaders, criterion, device, writer, global_step)
                 val_info = tabulate(val_results, headers=headers, tablefmt="grid")
 
                 logger.info(
@@ -155,9 +155,14 @@ def main(cfg: DictConfig):
                     logger.info(f"No improvement, consecutive count: {no_improvement_count}/{early_stop_patience}")
                 
                 # save epoch model
+                checkpoint = {
+                    "model_state_dict": model.state_dict(),
+                    "best_threshold": float(best_threshold),
+                    "epoch": epoch + 1
+                }
                 '''epoch_model_save_path = os.path.join(cfg.save_ckpt_dir, f"ckpt_{str(epoch+1).zfill(3)}.pth")
                 os.makedirs(os.path.dirname(epoch_model_save_path), exist_ok=True)
-                torch.save(model.state_dict(), epoch_model_save_path)'''
+                torch.save(checkpoint, epoch_model_save_path)'''
                 
                 # save best model
                 if val_acc > best_val_acc + min_delta:
@@ -165,14 +170,14 @@ def main(cfg: DictConfig):
                     best_val_acc = val_acc
                     best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_acc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
-                    torch.save(model.state_dict(), best_model_save_path)
+                    torch.save(checkpoint, best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
                 if val_auroc > best_val_auroc + min_delta:
                     logger.info(f"Current auroc ({val_auroc:.6f}) > Best auroc ({best_val_auroc:.6f})")
                     best_val_auroc = val_auroc
                     best_model_save_path = os.path.join(cfg.save_ckpt_dir, f"best_auroc_ckpt.pth")
                     os.makedirs(os.path.dirname(best_model_save_path), exist_ok=True)
-                    torch.save(model.state_dict(), best_model_save_path)
+                    torch.save(checkpoint, best_model_save_path)
                     logger.success(f"Model saved at {best_model_save_path}")
 
                 # Check if training should stop early

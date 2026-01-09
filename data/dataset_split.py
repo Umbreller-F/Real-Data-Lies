@@ -9,8 +9,8 @@ GENVIDEO_PIKA = {
     },
     "fake": {
         "train": ["Pika"],
-        "val":   ["Pika"],
-        # "val":   ["SEINE"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -34,7 +34,8 @@ GENVIDEO_SEINE = {
     },
     "fake": {
         "train": ["SEINE"],
-        "val":   ["SEINE"],
+        # "val":   ["SEINE"],
+        "val":   ["Pika"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -169,8 +170,8 @@ REALDIST_PIKA = {
     },
     "fake": {
         "train": ["Pika"],
-        "val":   ["Pika"],
-        # "val":   ["SEINE"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -205,8 +206,8 @@ REALDIST_I_PIKA = {
     },
     "fake": {
         "train": ["Pika"],
-        "val":   ["Pika"],
-        # "val":   ["SEINE"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -241,8 +242,8 @@ REALDIST_U_PIKA = {
     },
     "fake": {
         "train": ["Pika"],
-        "val":   ["Pika"],
-        # "val":   ["SEINE"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  
@@ -269,7 +270,8 @@ GENVIDEO_Y_PIKA = {
     },
     "fake": {
         "train": ["Pika"],
-        "val":   ["Pika"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
         "test":  [
             "ModelScope", 
             "MorphStudio",  

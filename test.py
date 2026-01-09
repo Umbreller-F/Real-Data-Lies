@@ -55,13 +55,15 @@ def test(cfg: DictConfig):
     ckpt_path = cfg.ckpt_path
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"Checkpoint file not found at {ckpt_path}")
-    logger.info(f"Loading checkpoint from {ckpt_path}")
     checkpoint = torch.load(ckpt_path, map_location=device)
+    train_epoch = checkpoint.get("epoch", "Unknown")
+    best_threshold = checkpoint.get("best_threshold", 0.5)
+    logger.info(f"Loaded checkpoint from {ckpt_path} | Train Epoch: {train_epoch} | Best Threshold: {best_threshold:.4f}")
     if torch.cuda.device_count() >= cfg.trainer.num_gpus and cfg.trainer.num_gpus > 1:
         model = nn.DataParallel(model, device_ids=cfg.trainer.device_ids[:cfg.trainer.num_gpus])
-        model.load_state_dict(checkpoint)
+        model.load_state_dict(checkpoint["model_state_dict"])
     else:
-        model.load_state_dict(checkpoint)
+        model.load_state_dict(checkpoint["model_state_dict"])
     model = model.to(device)
     model.eval()
     # endregion
@@ -124,7 +126,7 @@ def test(cfg: DictConfig):
 
     logger.info("Starting evaluation...")
     for data_model in tqdm(data_models, desc="Testing", unit="data model"):
-        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, device)
+        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, best_threshold, device)
     for real_model in generation_models["real"]["test"]:
         if real_model in empty_data_models:
             continue
@@ -132,7 +134,7 @@ def test(cfg: DictConfig):
             if fake_model in empty_data_models:
                 continue
             test_results = calculate_metrics(data_model_results[real_model], data_model_results[fake_model])
-            results.append([f"{real_model}-{fake_model}", 
+            results.append([f"{real_model}/{fake_model}", 
                             test_results["precision"], 
                             test_results["recall"], 
                             test_results["accuracy"], 
@@ -147,8 +149,8 @@ def test(cfg: DictConfig):
     grouped_results = {}
     for row in results:
         dataset_name = row[0]
-        if '-' in dataset_name:
-            real_model = '-'.join(dataset_name.split('-')[:-1])
+        if '/' in dataset_name:
+            real_model = dataset_name.split('/')[-1]
             if real_model not in grouped_results:
                 grouped_results[real_model] = []
             grouped_results[real_model].append(row)
@@ -196,7 +198,7 @@ def test(cfg: DictConfig):
 
 # region Test Func
 @torch.no_grad()
-def test_on_dataloader(model, test_dataloader, feature_type, device = torch.device('cuda'), frames_per_video = 8):
+def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, device = torch.device('cuda'), frames_per_video = 8):
     model.eval()
     all_labels = []
     all_predicted = []
@@ -209,7 +211,7 @@ def test_on_dataloader(model, test_dataloader, feature_type, device = torch.devi
         logits = model(inputs)
 
         output_pred = logits[:,0].sigmoid().cpu()
-        predicted = output_pred > 0.5
+        predicted = output_pred > best_threshold
         
         # Collect labels and predictions for metric calculation
         all_labels.extend(labels.cpu().numpy().flatten())
@@ -226,7 +228,7 @@ def test_on_dataloader(model, test_dataloader, feature_type, device = torch.devi
         num_videos = len(all_labels) // frames_per_video
         all_labels = all_labels.reshape(num_videos, frames_per_video)[:, 0]
         all_raw_preds = all_raw_preds.reshape(num_videos, frames_per_video).mean(axis=1)
-        all_predicted = all_raw_preds > 0.5
+        all_predicted = all_raw_preds > best_threshold
 
     return {
         "labels": all_labels,

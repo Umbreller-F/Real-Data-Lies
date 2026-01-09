@@ -1,4 +1,4 @@
-from transformers import XCLIPVisionModel, AutoProcessor
+from transformers import XCLIPVisionModel, XCLIPProcessor
 import os
 import sys
 import numpy as np
@@ -34,7 +34,6 @@ class XCLIP_DeMamba(nn.Module):
         self, channel_size=768, class_num=1
     ):
         super(XCLIP_DeMamba, self).__init__()
-        # self.encoder = XCLIPVisionModel.from_pretrained("GenVideo/pretrained_weights/xclip")
         self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
         blocks = []
         channel = 768
@@ -47,7 +46,7 @@ class XCLIP_DeMamba(nn.Module):
         self.fc_norm2 = nn.LayerNorm(768)
         self.initialize_weights(self.fc1)
         self.dropout = nn.Dropout(p=0.0)
-        self.processor = AutoProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True).image_processor
+        self.processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True ).image_processor
 
     def initialize_weights(self, module):
         for m in module.modules():
@@ -172,6 +171,6 @@ if __name__ == '__main__':
     output = model(tensor)
     print(output.shape)
 
-    from transformers import AutoProcessor
-    processor = AutoProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
+    processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True ).image_processor
+    print(processor)
     breakpoint()
