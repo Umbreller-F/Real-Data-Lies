@@ -15,6 +15,9 @@ from torch.hub import load_state_dict_from_url
 import logging
 from einops import rearrange
 import math
+from PIL import Image
+from copy import deepcopy
+from transformers import AutoImageProcessor
 
 _logger = logging.getLogger(__name__)
 
@@ -921,6 +924,28 @@ def _create_vision_transformer(variant, pretrained=False, pretrained_window_size
         )
     return model
 
+class VideoProcessorWrapper:
+    def __init__(self, processor):
+        self.processor = processor
+    
+    def __call__(self, images, return_tensors="pt"):
+        processed_frames = []
+        for frame in images:
+            img = Image.fromarray(frame)
+            tensor = self.processor(img)
+            processed_frames.append(tensor)
+        
+        video_tensor = torch.stack(processed_frames)  # [T, C, H, W]
+        
+        if return_tensors == "pt":
+            class Result:
+                pixel_values = [video_tensor]
+            return Result
+
+@property
+def processor(self):
+    return deepcopy(self._processor)
+
 @register_model
 def TALL_SWIN(pretrained=False, **kwargs):
     """ ViT-Base (ViT-B/16) from original paper (https://arxiv.org/abs/2010.11929).
@@ -952,6 +977,8 @@ def TALL_SWIN(pretrained=False, **kwargs):
     model_kwargs = dict(patch_size=patch_size, window_size=window_size, embed_dim=embed_dim, depths=depths, num_heads=num_heads, mlp_ratio=mlp_ratio,
                         use_checkpoint=use_checkpoint, ape=ape, bottleneck=bottleneck, **kwargs)
     model = _create_vision_transformer('swin_base_patch4_window7_224_22k', pretrained=pretrained, pretrained_window_size=7, **model_kwargs)
+    model._processor = VideoProcessorWrapper(AutoImageProcessor.from_pretrained("microsoft/swin-base-patch4-window7-224-in22k", local_files_only=True))
+    model.processor = processor.__get__(model, type(model))
     return model
 
 class TripleTALL_SWIN(SwinTransformer):
@@ -1139,14 +1166,18 @@ class SingleSwinBlock(nn.Module):
         return validity
 
 if __name__ == '__main__':
-    # model = TALL_SWIN(pretrained=True)
+    model = TALL_SWIN(pretrained=True)
     # model = TALL_SWIN()
-    model = SingleSwinBlockDiscriminator()
+    # model = SingleSwinBlockDiscriminator()
     # model = SwinTransformer(depths=[2], num_heads=[3])
     from torchinfo import summary
     import numpy as np
     summary(model)
-    model = model.cpu()
-    tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cpu()
-    # print(model(tensor).shape)
-    print(model(tensor,True)[1].shape)
+    print(model.processor)
+    model = model.cuda()
+    tensor = torch.tensor(np.random.rand(2, 8, 3, 224, 224), dtype=torch.float32).cuda()
+    print(model(tensor).shape)
+    # print(model(tensor,True)[1].shape)
+
+    # processor = AutoImageProcessor.from_pretrained("microsoft/swin-base-simmim-window6-192")
+    AutoImageProcessor.from_pretrained("microsoft/swin-base-patch4-window7-224-in22k")

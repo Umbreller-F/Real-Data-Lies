@@ -193,3 +193,10 @@ Wan2.2_VAE.pth
 *.pth
 tmp*
 data_analysis/results/resolution/resolution_report.txt
+data/realesrgan-ncnn-vulkan-20220424-ubuntu.zip
+data/realesrgan/
+*.pdf
+models/VideoMAEv2_Base/
+data_analysis/LSVQ_labels/HQ_train.txt
+data_analysis/LSVQ_labels/HQ_train1.txt
+data_analysis/results/joint_sampling/InternVidAES-Top1K.txt

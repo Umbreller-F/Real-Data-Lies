@@ -8,6 +8,7 @@ hydra:
 model:
   name: "DeMamba"
   Q_attr: False
+  clip: False
 
 seed: 42
 trainer:
@@ -22,6 +23,7 @@ trainer:
   val_check_interval: 1
   num_gpus: 1
   device_ids: [0,1,2,3]
+  early_stop_patience: 5
 
 data:
   batch_size: 12
@@ -49,6 +51,9 @@ data:
   aug_type: 1
   add_degraded_dataset: False
   num_degraded: 0
+  add_UHQ_dataset: False
+  add_UHQ_real: False
+  pika_uniform_match: False
   
 task_type: standard # standard / unbalance
 debug: False

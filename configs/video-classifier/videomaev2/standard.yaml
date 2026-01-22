@@ -7,13 +7,16 @@ hydra:
 
 model:
   name: "VideoMAEv2"
+  extra: False
+  Large: False
+  Q_attr: False
 
 seed: 42
 trainer:
   max_epochs: 30
   optimizer:
     name: "adamW"
-    lr: 1e-5
+    lr: 1e-6
     betas: [0.9,0.999]
     weight_decay: 0.1
   loss_fn:
@@ -46,6 +49,13 @@ data:
   quality_match: False
   use_aug: True
   aug_type: 1
+  add_degraded_dataset: False
+  num_degraded: 0
+  add_UHQ_dataset: False
+  add_enhanced_data: False
+  pika_uniform_match: False
+  K400_1k_type: 0
+  one_more: 0
   
 task_type: standard # standard / unbalance
 debug: False

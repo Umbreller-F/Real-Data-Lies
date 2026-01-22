@@ -4,8 +4,9 @@ from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS
 from data.dataset import get_single_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimeSformer
-from models.videomaev2 import VideoMAEv2
-from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1
+from models.videomaev2 import VideoMAEv2, VideoMAEv2_Q1
+from models.videomaev2_x import VideoMAEv2_X
+from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1, XCLIP_DeMamba_Q2, CLIP_DeMamba
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from utils.train_utils import *
@@ -31,6 +32,7 @@ def test(cfg: DictConfig):
     logger.info('Testing configuration:\n' + OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
+    quality_grl = cfg.get('quality_grl', False)
     Q_attr = cfg.model.get('Q_attr', 0)
     # endregion
 
@@ -39,12 +41,27 @@ def test(cfg: DictConfig):
     if 'TimeSformer' in cfg.model.name:
         model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
-        model = VideoMAEv2()
-    elif cfg.model.name == "DeMamba":
+        # if cfg.model.get('extra', False):
+        #     model = VideoMAEv2_X()
+        # else:
+        #     if cfg.model.get('Large', False):
+        #         model = VideoMAEv2(model_type='VideoMAEv2-Large')
+        #     else:
+        #         model = VideoMAEv2()
         if Q_attr == 0:
-            model = XCLIP_DeMamba()
+            model = VideoMAEv2()
         elif Q_attr == 1:
-            model = XCLIP_DeMamba_Q1()
+            model = VideoMAEv2_Q1()
+    elif cfg.model.name == "DeMamba":
+        if cfg.model.clip:
+            model = CLIP_DeMamba()
+        else:
+            if Q_attr == 0:
+                model = XCLIP_DeMamba(quality_grl=quality_grl)
+            elif Q_attr == 1:
+                model = XCLIP_DeMamba_Q1()
+            elif Q_attr == 2:
+                model = XCLIP_DeMamba_Q2()
     elif cfg.model.name == "DINOv2":
         model = DINOv2()
     elif cfg.model.name == "DINOv3":
@@ -220,7 +237,7 @@ def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, dev
             inputs, labels = inputs.float().to(device), labels.to(device)
 
             logits = model(inputs)
-        elif Q_attr == 1:
+        elif Q_attr in [1, 2]:
             inputs, labels, video_ids, Q_attr_scores = batch
             inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
             logits = model(inputs, Q_attr_scores)

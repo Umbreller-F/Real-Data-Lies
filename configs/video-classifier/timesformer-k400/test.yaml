@@ -14,7 +14,7 @@ trainer:
   max_epochs: 30
   optimizer:
     name: "adamW"
-    lr: 1e-5
+    lr: 1e-6
     betas: [0.9,0.999]
     weight_decay: 0.1
   loss_fn:
@@ -26,18 +26,26 @@ trainer:
 data:
   feature_type: video
   dataset_name: "GenVideo"
-  num_workers: 16
+  num_workers: 32
   data_path: "../Data/${data.dataset_name}"
   num_frames: 8
   generation_model: "Pika" 
-  input_shape: [256,256]
+  input_shape: [224,224]
   train_real_model: "Kinetics-400"
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
   train_load_len: 10000
-  test_load_len: 500
+  test_load_len: 1000
   batch_size: 16
-  val_batch_size: 32
+  val_batch_size: 64
+  vae_recon: False
+  vae_model: 'Wan2.2'
+  recon_prop: 0.5
+  sample_strategy: 'fixed_interval'
+  no_resize: False
+  quality_match: False
+  use_aug: True
+  num_degraded: 0
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
@@ -48,3 +56,4 @@ revise: True
 inference:
   demo_path: "../Data/demo/sora2_frames"
   label: "fake"
+quality_grl: False

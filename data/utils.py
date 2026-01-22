@@ -86,6 +86,7 @@ def get_generation_models(dataset_name):
                     "InternVid-AES",
                     "GenBuster-200K-benchmark",
                     "GenBuster-200K-test",
+                    "OpenVidHD"
                 ]
             },
             "fake": {
@@ -157,7 +158,7 @@ def get_all_generation_models(dataset_name):
 def get_label_from_generation_model(generation_model):
     if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG", "Youku", "vsr", "LSVQ", "LSVQ_1080p", 
                             "RealVSR", "InternVid-AES", "Uniform", "GenBuster-200K-benchmark", "GenBuster-200K-test", 
-                            "OpenVidHD", "InternVid-AES-D",]:
+                            "OpenVidHD", "InternVid-AES-D", "OpenVid-UHQ", "InternVid-AES-E-1K", "K400-1k", "Kinetics-400-M"]:
         return "real"
     else:
         return "fake"

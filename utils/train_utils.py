@@ -25,7 +25,7 @@ def train_classifer(model, train_dataloader, optimizer, device, writer, global_s
                     writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
                 inputs, labels = inputs.float().to(device), labels.float().to(device)
                 logits = model(inputs)
-            elif Q_attr == 1:
+            elif Q_attr in [1, 2]:
                 inputs, labels, video_ids, Q_attr_scores = batch
                 if global_step  % 500 == 0:
                     writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
@@ -188,7 +188,7 @@ def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step, 
                     logits = model(inputs)
                 else:
                     logits, _ = model(inputs)
-            elif Q_attr == 1:
+            elif Q_attr in [1, 2]:
                 inputs, labels, video_ids, Q_attr_scores = batch
                 inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
                 logits = model(inputs, Q_attr_scores)

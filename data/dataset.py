@@ -166,7 +166,7 @@ class ImageDataset(Dataset):
         if load_len is not None:
             # logger.info(f"Limiting dataset from {len(self.video_dirs)} to {load_len} videos.")
             self.video_dirs = self.video_dirs[:load_len]
-        # all video frames path
+        '''# all video frames path
         self.image_paths = []
         for video_dir in self.video_dirs:
             # Check if the directory exists and contains .jpg files
@@ -179,7 +179,7 @@ class ImageDataset(Dataset):
                 if len(frames) == self.num_frames:
                     self.image_paths.extend(frames)
             else:
-                logger.warning(f"Directory {video_dir} does not exist.")
+                logger.warning(f"Directory {video_dir} does not exist.")'''
         # all video frames path
         self.image_paths = []
         required_total_frames = (self.num_frames - 1) * self.frame_sample_rate + 1
@@ -297,6 +297,14 @@ class VideoDataset(Dataset):
                 self.aug_consistent = build_video_augmentor(pipe_consistent)
                 logger.info(f"AUG TYPE 2:\n{pipe_consistent}")
             elif self.aug_type == 3:
+                resize_aug = ReplayCompose([
+                    OneOf([
+                        A.SmallestMaxSize(max_size=720),
+                        A.SmallestMaxSize(max_size=360),
+                    ])
+                ])
+                resize_aug.set_random_seed(42)
+                self.aug_resize = build_video_augmentor(resize_aug)
                 degradation_aug = [
                     OneOf([
                         A.GaussianBlur(sigma_limit=(0.5, 2.5), p=1.0),
@@ -339,6 +347,82 @@ class VideoDataset(Dataset):
                         ])
                     )
                 ])'''
+            elif self.aug_type == 4:
+                resize_aug = ReplayCompose([
+                    OneOf([
+                        A.SmallestMaxSize(max_size=[720, 480, 360, 240]),
+                        A.ShiftScaleRotate(rotate_limit=(-30, 30), p=1.0),
+                        A.HorizontalFlip(p=1.0),
+                        A.VerticalFlip(p=1.0),
+                        A.ToGray(p=0.2),
+                        A.InvertImg(p=0.2),
+                    ])
+                ])
+                resize_aug.set_random_seed(42)
+                self.aug_resize = build_video_augmentor(resize_aug)
+                degradation_aug = [
+                    OneOf([
+                        A.GaussianBlur(sigma_limit=(0.5, 2.5), p=1.0),
+                        A.ColorJitter(p=1.0),
+                        A.ImageCompression(quality_range=(40, 95), p=1.0),
+                        A.MotionBlur(blur_limit=(3, 7), p=1.0),
+                    ]),
+                ]
+                degradation_aug_independent = [
+                    OneOf([
+                        A.SaltAndPepper(p=1.0),
+                        OneOf([
+                            A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.5), p=1.0),
+                            A.GaussNoise(std_range=(0.01, 0.05), p=1.0),
+                        ]),
+                        A.CoarseDropout(num_holes_range=(3, 8), hole_height_range=(0.05, 0.1), hole_width_range=(0.05, 0.1), fill="inpaint_ns", p=1.0),
+                    ])
+                ]
+                pipe_degradation_consistent = ReplayCompose(degradation_aug)
+                pipe_degradation_consistent.set_random_seed(42)
+                self.aug_degradation_consistent = build_video_augmentor(pipe_degradation_consistent)
+                pipe_degradation_independent = Compose(degradation_aug_independent)
+                pipe_degradation_independent.set_random_seed(42)
+                self.aug_degradation_independent = build_independent_video_augmentor(pipe_degradation_independent)
+                logger.info(f"AUG TYPE 4:\n{pipe_degradation_consistent}\n{pipe_degradation_independent}")
+            elif self.aug_type == 5:
+                resize_aug = ReplayCompose([
+                    OneOf([
+                        A.SmallestMaxSize(max_size=[720, 480, 360, 240]),
+                        A.ShiftScaleRotate(rotate_limit=(-30, 30), p=1.0),
+                        A.HorizontalFlip(p=1.0),
+                        A.VerticalFlip(p=1.0),
+                        A.ToGray(p=0.2),
+                        A.InvertImg(p=0.2),
+                    ])
+                ])
+                resize_aug.set_random_seed(42)
+                self.aug_resize = build_video_augmentor(resize_aug)
+                degradation_aug = [
+                    OneOf([
+                        A.GaussianBlur(sigma_limit=(0.5, 2.5), p=1.0),
+                        A.ColorJitter(p=1.0),
+                        A.ImageCompression(quality_range=(40, 95), p=1.0),
+                        A.MotionBlur(blur_limit=(3, 7), p=1.0),
+                    ]),
+                ]
+                degradation_aug_independent = [
+                    OneOf([
+                        A.SaltAndPepper(p=1.0),
+                        OneOf([
+                            A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.5), p=1.0),
+                            A.GaussNoise(std_range=(0.01, 0.05), p=1.0),
+                        ]),
+                        A.CoarseDropout(num_holes_range=(3, 8), hole_height_range=(0.05, 0.1), hole_width_range=(0.05, 0.1), fill="inpaint_ns", p=1.0),
+                    ])
+                ]
+                pipe_degradation_consistent = ReplayCompose(degradation_aug)
+                pipe_degradation_consistent.set_random_seed(42)
+                self.aug_degradation_consistent = build_video_augmentor(pipe_degradation_consistent)
+                pipe_degradation_independent = Compose(degradation_aug_independent)
+                pipe_degradation_independent.set_random_seed(42)
+                self.aug_degradation_independent = build_independent_video_augmentor(pipe_degradation_independent)
+                logger.info(f"AUG TYPE 4:\n{pipe_degradation_consistent}\n{pipe_degradation_independent}")
             logger.info(f"Use data augmentations.")
         else:
             logger.info("Disable data augmentations.")
@@ -405,7 +489,7 @@ class VideoDataset(Dataset):
                 self.qualtiy_score_groundtruth[row['video_name']] = row['final_score'] / 100.0
         
         self.Q_attr = Q_attr
-        if self.Q_attr == 1:
+        if self.Q_attr in [1, 2]:
             csv_path = f'../Data/RealDist/dover_scores/{self.label}/{self.generation_model}.csv'
             df = pd.read_csv(csv_path)
             df.columns = df.columns.str.replace(' ', '')
@@ -421,7 +505,9 @@ class VideoDataset(Dataset):
         # breakpoint()
         
         if load_len is not None:
-            self.video_frame_paths = self.video_frame_paths[:load_len]
+            if len(self.video_frame_paths) > load_len:
+                logger.info(f"Limiting dataset from {len(self.video_frame_paths)} to {load_len} videos.")
+                self.video_frame_paths = self.video_frame_paths[:load_len]
         if not use_vae:
             logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} videos / {self.generation_model}]")
         else:
@@ -483,12 +569,24 @@ class VideoDataset(Dataset):
                 elif self.aug_type == 2:
                     video_data = self.aug_consistent(video_data)
                 elif self.aug_type == 3:
-                    if self.label == "fake":
-                        p = random.random()
-                        if 0.5 < p < 0.8:
-                            video_data = self.aug_degradation_consistent(video_data)
-                        elif p >= 0.8:
-                            video_data = self.aug_degradation_independent(video_data)
+                    # if self.label == "fake":
+                    p1 = random.random()
+                    if p1 < 0.5:
+                        video_data = self.aug_resize(video_data)
+                    p2 = random.random()
+                    if 0.5 < p2 < 0.8:
+                        video_data = self.aug_degradation_consistent(video_data)
+                    elif p2 >= 0.8:
+                        video_data = self.aug_degradation_independent(video_data)
+                elif self.aug_type == 4:
+                    p1 = random.random()
+                    if p1 < 0.5:
+                        video_data = self.aug_resize(video_data)
+                    p2 = random.random()
+                    if 0.5 < p2 < 0.8:
+                        video_data = self.aug_degradation_consistent(video_data)
+                    elif p2 >= 0.8:
+                        video_data = self.aug_degradation_independent(video_data)
             
             video = self.processor(images=video_data, return_tensors="pt").pixel_values[0]
             label = np.array([0 if self.label=="real" else 1], dtype=np.float32)
@@ -500,7 +598,7 @@ class VideoDataset(Dataset):
             if self.quality_grl and self.mode == "train":
                 quality_score = np.array([self.qualtiy_score_groundtruth[video_id]], dtype=np.float32)
                 return video, label, video_id, quality_score
-            if self.Q_attr == 1:
+            if self.Q_attr in [1, 2]:
                 Q_attr_score = np.array(self.Q_attr_gt[video_id], dtype=np.float32)
                 return video, label, video_id, Q_attr_score
             return video, label, video_id
@@ -814,7 +912,7 @@ def get_paired_dataset(data_cfg, mode, processor, vae=None, recon_prop=0.5, load
             input_shape=tuple(data_cfg.input_shape),
             use_aug=use_aug,
             )
-        real_len = int(len(fake_dataset) / pn_ratio)
+        real_len = int(len(fake_dataset) / pn_ratio / num_frames)
         real_dataset = ImageDataset(
             processor=processor,
             data_path=data_cfg.data_path, 

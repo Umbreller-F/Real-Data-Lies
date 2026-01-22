@@ -32,7 +32,7 @@ data:
   data_path: "../Data/${data.dataset_name}"
   num_frames: 8
   generation_model: "Pika" 
-  input_shape: [256,256]
+  input_shape: [224,224]
   train_real_model: "Kinetics-400"
   val_real_model: "Kinetics-400"
   test_real_model: "MSR-VTT"
@@ -44,6 +44,13 @@ data:
   recon_prop: 0.5
   sample_strategy: 'fixed_interval'
   no_resize: False
+  quality_match: False
+  use_aug: True
+  aug_type: 1
+  add_degraded_dataset: False
+  num_degraded: 0
+  add_enhanced_data: False
+  pika_uniform_match: False
   
 task_type: standard # standard / unbalance
 debug: False
@@ -52,3 +59,4 @@ save_ckpt_dir: "./results/ckpts/baselines/${experiment_name}/"
 log_path: "./results/logs/baselines/"
 
 revise: True
+quality_grl: False

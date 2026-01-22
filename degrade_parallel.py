@@ -135,7 +135,7 @@ if __name__ == "__main__":
     random.seed(42)
     # INPUT_DIR = "../Data/data_for_joint_sampling/InternVid-AES"
     # OUTPUT_DIR = "../Data/degraded_videos/InternVid-AES"
-    INPUT_DIR = "../Data/data_for_joint_sampling/Pika"
+    INPUT_DIR = "/data1/Data_AIGVDetect/data_for_joint_sampling/Pika_val"
     OUTPUT_DIR = "../Data/degraded_videos/Pika"
     
     start = perf_counter()

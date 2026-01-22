@@ -1,14 +1,16 @@
 from utils.experiment_utils import set_seed, seed_worker
 from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA, REALDIST_O_PIKA
 # from data.video_dataset import get_video_dataset
-from data.dataset import get_paired_dataset, QualityMatchedDataset
+from data.dataset import get_paired_dataset, QualityMatchedDataset, get_single_dataset
 from omegaconf import DictConfig, OmegaConf
 from utils.train_utils import *
 from models.timesformer import TimeSformer
-from models.videomaev2 import VideoMAEv2
-from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1
+from models.videomaev2 import VideoMAEv2, VideoMAEv2_Q1
+from models.videomaev2_x import VideoMAEv2_X
+from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1, XCLIP_DeMamba_Q2, CLIP_DeMamba
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
+from models.tall import TALL_SWIN
 from loguru import logger
 from tqdm import tqdm
 from tabulate import tabulate
@@ -48,12 +50,27 @@ def main(cfg: DictConfig):
     if 'TimeSformer' in cfg.model.name:
         model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
-        model = VideoMAEv2()
-    elif cfg.model.name == "DeMamba":
         if Q_attr == 0:
-            model = XCLIP_DeMamba(quality_grl=quality_grl)
+            model = VideoMAEv2()
         elif Q_attr == 1:
-            model = XCLIP_DeMamba_Q1()
+            model = VideoMAEv2_Q1()
+        # if cfg.model.get('extra', False):
+        #     model = VideoMAEv2_X()
+        # else:
+        #     if cfg.model.get('Large', False):
+        #         model = VideoMAEv2(model_type='VideoMAEv2-Large')
+        #     else:
+        #         model = VideoMAEv2()
+    elif cfg.model.name == "DeMamba":
+        if cfg.model.clip:
+            model = CLIP_DeMamba()
+        else:
+            if Q_attr == 0:
+                model = XCLIP_DeMamba(quality_grl=quality_grl)
+            elif Q_attr == 1:
+                model = XCLIP_DeMamba_Q1()
+            elif Q_attr == 2:
+                model = XCLIP_DeMamba_Q2()
     elif cfg.model.name == "DINOv2":
         model = DINOv2()
         torch.use_deterministic_algorithms(True, warn_only=True)
@@ -99,6 +116,8 @@ def main(cfg: DictConfig):
     # train data
     real_model = generation_models["real"]["train"][0]
     fake_model = generation_models["fake"]["train"][0]
+    if cfg.data.get('pika_uniform_match', False):
+        fake_model = 'Pika-U'
     if cfg.data.vae_recon:
         mp.set_start_method('spawn', force=True)
         recon_prop = cfg.data.recon_prop
@@ -131,9 +150,79 @@ def main(cfg: DictConfig):
             degraded_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-D', real_model='InternVid-AES-D', 
                                     mode="train", load_len=cfg.data.get("num_degraded", 10000), pn_ratio=pn_ratio,
                                     num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
-                                    vae=vae, recon_prop=recon_prop,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
                                     quality_grl=quality_grl)
             train_dataset = ConcatDataset([train_dataset, degraded_dataset])
+        if cfg.data.get("add_UHQ_dataset", False):
+            UHQ_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-E-1K', real_model='OpenVid-UHQ', 
+                                    mode="train", load_len=1000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, UHQ_dataset])
+        if cfg.data.get("add_UHQ_real", False):
+            UHQ_real = get_single_dataset(
+                cfg.data, mode="train", data_model='OpenVid-UHQ', load_len=1000,
+                num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize, 
+                Q_attr=Q_attr,
+            )
+            train_dataset = ConcatDataset([train_dataset, UHQ_real])
+        if cfg.data.get("add_enhanced_data", False):
+            E_dataset = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-E-1K', real_model='InternVid-AES-E-1K', 
+                                    mode="train", load_len=1000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, E_dataset])
+        if cfg.data.get("K400_1k_type", 0) == 1:
+            dataset_1k = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-DE-1k', real_model='K400-1k', 
+                                    mode="train", load_len=1000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_1k])
+        if cfg.data.get("K400_1k_type", 0) == 2:
+            dataset_1k = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-Rest-1k', real_model='K400-1k', 
+                                    mode="train", load_len=1000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_1k])
+        if cfg.data.get('one_more', 0) == 1:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='Pika-2', real_model='Kinetics-400', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 2:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora', real_model='Kinetics-400', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 3:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='SD', real_model='Kinetics-400', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 4:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-M', real_model='Kinetics-400-M', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 5:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='DynamicCrafter', real_model='Kinetics-400', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
         train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
                                   worker_init_fn=seed_worker, generator=generator)
     # val data
@@ -152,7 +241,7 @@ def main(cfg: DictConfig):
     global_step = 0
     best_val_auroc = - float("inf")
     best_val_f1 = - float("inf")
-    early_stop_patience = 5
+    early_stop_patience = cfg.trainer.get("early_stop_patience", 5)
     no_improvement_count = 0
     min_delta = 0.001
     # loss function and optimizer

@@ -8,6 +8,7 @@ hydra:
 model:
   name: "DeMamba"
   Q_attr: False
+  clip: False
 
 seed: 42
 trainer:

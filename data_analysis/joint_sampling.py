@@ -5,24 +5,24 @@ import matplotlib.pyplot as plt
 import os
 
 # # --- Configuration ---
-# FILE_PATHS = [
-#     'data_analysis/results/joint_sampling/InternVidAES.csv',
-#     'data_analysis/results/joint_sampling/K400.csv'
-# ]
-# OUTPUT_TXT = 'data_analysis/results/joint_sampling/sampled_uniform_10k.txt'
-# OUTPUT_IMG = 'data_analysis/results/joint_sampling/distribution_pdf.png'
-# TARGET_SIZE = 10000
-# SEED = 1958  # Fixed seed for reproducibility
+FILE_PATHS = [
+    'data_analysis/results/joint_sampling/InternVidAES.csv',
+    'data_analysis/results/joint_sampling/K400.csv'
+]
+OUTPUT_TXT = 'data_analysis/results/joint_sampling/sampled_uniform_10k.txt'
+OUTPUT_IMG = 'data_analysis/results/joint_sampling/distribution_pdf.png'
+TARGET_SIZE = 10000
+SEED = 1958  # Fixed seed for reproducibility
 
 # --- Configuration ---
-FILE_PATHS = [
-    'data_analysis/results/joint_sampling/InternVidAES_val.csv',
-    'data_analysis/results/joint_sampling/K400_val.csv'
-]
-OUTPUT_TXT = 'data_analysis/results/joint_sampling/sampled_uniform_1k_val.txt'
-OUTPUT_IMG = 'data_analysis/results/joint_sampling/distribution_pdf_val.png'
-TARGET_SIZE = 1000
-SEED = 1958  # Fixed seed for reproducibility
+# FILE_PATHS = [
+#     'data_analysis/results/joint_sampling/InternVidAES_val.csv',
+#     'data_analysis/results/joint_sampling/K400_val.csv'
+# ]
+# OUTPUT_TXT = 'data_analysis/results/joint_sampling/sampled_uniform_1k_val.txt'
+# OUTPUT_IMG = 'data_analysis/results/joint_sampling/distribution_pdf_val.png'
+# TARGET_SIZE = 1000
+# SEED = 1958  # Fixed seed for reproducibility
 
 def main():
     # 1. Load and Merge Data
@@ -96,15 +96,44 @@ def main():
     plt.grid(True, alpha=0.3)
     plt.xlim(0, 100) # Fix x-axis to score range
     
-    # Ensure directory exists before saving
-    os.makedirs(os.path.dirname(OUTPUT_IMG), exist_ok=True)
-    plt.savefig(OUTPUT_IMG)
-    plt.close()
+    # # Ensure directory exists before saving
+    # os.makedirs(os.path.dirname(OUTPUT_IMG), exist_ok=True)
+    # plt.savefig(OUTPUT_IMG)
+    # plt.close()
 
-    # 4. Save List
-    os.makedirs(os.path.dirname(OUTPUT_TXT), exist_ok=True)
-    sampled_df['path'].to_csv(OUTPUT_TXT, index=False, header=False)
-    print(f"Done! Path list saved to: {OUTPUT_TXT}")
+    # # 4. Save List
+    # os.makedirs(os.path.dirname(OUTPUT_TXT), exist_ok=True)
+    # sampled_df['path'].to_csv(OUTPUT_TXT, index=False, header=False)
+    # print(f"Done! Path list saved to: {OUTPUT_TXT}")
+
+    # sampled_df.to_csv('data_analysis/results/joint_sampling/uniform.csv', index=False)
+
+    original_data = []
+    selected_original_rows = []
+    for f in FILE_PATHS:
+        if os.path.exists(f):
+            original_data.append(pd.read_csv(f, header=None, skipinitialspace=True))
+        else:
+            original_data.append(pd.DataFrame())  # empty placeholder
+    # Find which original rows were selected
+    
+    for f in FILE_PATHS:
+        for df in original_data:
+            if len(df) > 0:
+                # Get indices of selected rows from this file
+                file_mask = (sampled_df['source'] == os.path.basename(f))
+                selected_from_file = sampled_df[file_mask]
+                
+                # For each selected row, find its position in original file
+                for _, row in selected_from_file.iterrows():
+                    # Find matching path in original file
+                    match_idx = df[df[0] == row['path']].index
+                    if len(match_idx) > 0:
+                        selected_original_rows.append(df.iloc[match_idx[0]])
+
+    # Create result dataframe with original format
+    result_df = pd.DataFrame(selected_original_rows)
+    result_df.to_csv('data_analysis/results/joint_sampling/uniform_original.csv', index=False, header=False)
 
 if __name__ == "__main__":
     main()

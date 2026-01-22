@@ -44,6 +44,9 @@ data:
   sample_strategy: 'fixed_interval'
   no_resize: False
   use_aug: True
+  add_degraded_dataset: False
+  num_degraded: 0
+  add_UHQ_dataset: False
   
 task_type: standard # standard / unbalance
 debug: False

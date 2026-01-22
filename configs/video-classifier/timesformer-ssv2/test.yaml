@@ -45,6 +45,7 @@ data:
   no_resize: False
   quality_match: False
   use_aug: True
+  num_degraded: 0
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
