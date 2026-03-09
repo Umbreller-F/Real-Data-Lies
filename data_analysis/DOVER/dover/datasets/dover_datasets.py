@@ -461,7 +461,7 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
                         filename = osp.join(self.data_prefix, filename)
                         self.video_infos.append(dict(filename=filename, label=label))
             except:
-                if "/video_frames/" in self.data_prefix:
+                if "frames" in self.data_prefix:
                     video_filenames = os.listdir(self.data_prefix)
                     print(len(video_filenames))
                     video_filenames = sorted(video_filenames)
@@ -484,7 +484,7 @@ class ViewDecompositionDataset(torch.utils.data.Dataset):
         filename = video_info["filename"]
         label = video_info["label"]
         try:
-            is_frames = ('/video_frames/' in filename) and not (filename.endswith(('.mp4', '.mov', '.webm')))
+            is_frames = ('frames' in filename) and not (filename.endswith(('.mp4', '.mov', '.webm')))
         
             if is_frames:
                 # Read from extracted frame directory

@@ -66,6 +66,8 @@ def test(cfg: DictConfig):
         model = DINOv2()
     elif cfg.model.name == "DINOv3":
         model = DINOv3()
+    elif cfg.model.name == "DINOv3-ConvNeXt":
+        model = DINOv3('dinov3-convnext-large')
     elif cfg.model.name == "NPR":
         model = resnet50()
     else:

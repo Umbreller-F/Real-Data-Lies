@@ -157,16 +157,19 @@ REALDIST_PIKA = {
         "train": ["LSVQ"],
         "val":   ["LSVQ"],
         "test":  [
-            "LSVQ",
-            "LSVQ_1080p",
+            # "LSVQ",
+            # "LSVQ_1080p",
             "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
             "Kinetics-400",
-            "GenBuster-200K-benchmark",
-            "GenBuster-200K-test",
+            # "GenBuster-200K-benchmark",
+            # "GenBuster-200K-test",
+            "Vript",
+            "HD-VG-130M",
             "OpenVidHD",
+            "UltraVideo",
         ]
     },
     "fake": {
@@ -194,15 +197,18 @@ REALDIST_I_PIKA = {
         "train": ["InternVid-AES"],
         "val":   ["InternVid-AES"],
         "test":  [
-            "LSVQ",
-            "LSVQ_1080p",
+            # "LSVQ",
+            # "LSVQ_1080p",
             "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
             "Kinetics-400",
-            "GenBuster-200K-benchmark",
-            "GenBuster-200K-test",
+            # "GenBuster-200K-benchmark",
+            # "GenBuster-200K-test",
+            "Vript",
+            "HD-VG-130M",
+            "UltraVideo",
         ]
     },
     "fake": {
@@ -230,15 +236,15 @@ REALDIST_U_PIKA = {
         "train": ["Uniform"],
         "val":   ["Uniform"],
         "test":  [
-            "LSVQ",
-            "LSVQ_1080p",
+            # "LSVQ",
+            # "LSVQ_1080p",
             "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
             "Kinetics-400",
-            "GenBuster-200K-benchmark",
-            "GenBuster-200K-test",
+            # "GenBuster-200K-benchmark",
+            # "GenBuster-200K-test",
         ]
     },
     "fake": {
@@ -265,15 +271,15 @@ REALDIST_O_PIKA = {
         "train": ["OpenVidHD"],
         "val":   ["OpenVidHD"],
         "test":  [
-            "LSVQ",
-            "LSVQ_1080p",
+            # "LSVQ",
+            # "LSVQ_1080p",
             "InternVid-AES",
             "RealVSR",
             "MSR-VTT",
             "Youku",
             "Kinetics-400",
-            "GenBuster-200K-benchmark",
-            "GenBuster-200K-test",
+            # "GenBuster-200K-benchmark",
+            # "GenBuster-200K-test",
             "OpenVidHD",
         ]
     },
@@ -300,6 +306,34 @@ GENVIDEO_Y_PIKA = {
     "real": {
         "train": ["Youku"],
         "val":   ["Youku"],
+        "test":  [
+            "MSR-VTT",
+            "Kinetics-400"
+        ]
+    },
+    "fake": {
+        "train": ["Pika"],
+        # "val":   ["Pika"],
+        "val":   ["SEINE"],
+        "test":  [
+            "ModelScope", 
+            "MorphStudio",  
+            "MoonValley", 
+            "HotShot",
+            "Show_1",
+            "Gen2", 
+            "Crafter",
+            "Lavie", 
+            "Sora", 
+            "WildScrape"
+        ]
+    },
+}
+
+REALDIST_V_PIKA = {
+    "real": {
+        "train": ["Vript"],
+        "val":   ["Vript"],
         "test":  [
             "MSR-VTT",
             "Kinetics-400"

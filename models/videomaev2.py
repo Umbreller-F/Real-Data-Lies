@@ -108,23 +108,23 @@ if __name__ == "__main__":
     with torch.no_grad():
         outputs = model(**inputs)
     print("Logits shape:", outputs.shape)'''
-    # model = VideoMAEv2(model_type='VideoMAEv2-Large')
-    # summary(model)
-    # print(model.processor)
-    # print(model.model.config.model_config['embed_dim'])
-    # model = model.cuda()
-    # tensor = torch.tensor(np.random.rand(4, 16, 3, 224, 224), dtype=torch.float32).cuda()
-    # with torch.no_grad():
-    #     logits = model(tensor)
-    # print("Logits shape:", logits.shape)
-    # breakpoint()
-
-    model = VideoMAEv2_Q1()
+    model = VideoMAEv2(model_type='VideoMAEv2-Large')
     summary(model)
+    print(model.processor)
+    print(model.model.config.model_config['embed_dim'])
     model = model.cuda()
-    model.eval()
-    video_tensor = torch.tensor(np.random.rand(2, 16, 3, 224, 224), dtype=torch.float32).cuda()
-    Q_attributes = torch.tensor(np.random.rand(2, 3) * 100, dtype=torch.float32).cuda()
+    tensor = torch.tensor(np.random.rand(4, 16, 3, 224, 224), dtype=torch.float32).cuda()
     with torch.no_grad():
-        output = model(video_tensor, Q_attributes)
-    print(output.shape)
+        logits = model(tensor)
+    print("Logits shape:", logits.shape)
+    breakpoint()
+
+    # model = VideoMAEv2_Q1()
+    # summary(model)
+    # model = model.cuda()
+    # model.eval()
+    # video_tensor = torch.tensor(np.random.rand(2, 16, 3, 224, 224), dtype=torch.float32).cuda()
+    # Q_attributes = torch.tensor(np.random.rand(2, 3) * 100, dtype=torch.float32).cuda()
+    # with torch.no_grad():
+    #     output = model(video_tensor, Q_attributes)
+    # print(output.shape)

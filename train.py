@@ -1,5 +1,5 @@
 from utils.experiment_utils import set_seed, seed_worker
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA, REALDIST_O_PIKA
+from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA, REALDIST_O_PIKA, REALDIST_V_PIKA
 # from data.video_dataset import get_video_dataset
 from data.dataset import get_paired_dataset, QualityMatchedDataset, get_single_dataset
 from omegaconf import DictConfig, OmegaConf
@@ -76,6 +76,8 @@ def main(cfg: DictConfig):
         torch.use_deterministic_algorithms(True, warn_only=True)
     elif cfg.model.name == "DINOv3":
         model = DINOv3()
+    elif cfg.model.name == "DINOv3-ConvNeXt":
+        model = DINOv3('dinov3-convnext-large')
     elif cfg.model.name == "NPR":
         model = resnet50()
     else:
@@ -110,6 +112,9 @@ def main(cfg: DictConfig):
     elif cfg.data.dataset_name == "RealDist-O":
         if cfg.data.generation_model == "Pika":
             generation_models = REALDIST_O_PIKA
+    elif cfg.data.dataset_name == "RealDist-V":
+        if cfg.data.generation_model == "Pika":
+            generation_models = REALDIST_V_PIKA
     else:
         raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
     pn_ratio = 1
@@ -223,6 +228,85 @@ def main(cfg: DictConfig):
                                     vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
                                     quality_grl=quality_grl)
             train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 6:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-UM', real_model='Kinetics-400-UM', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+
+        if cfg.data.get('one_more', 0) == 71:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-MM1', real_model='Kinetics-400-MM1', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 73:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-MM3', real_model='Kinetics-400-MM3', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 72:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-MM2', real_model='Kinetics-400-MM2', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 75:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-MM5', real_model='Kinetics-400-MM5', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+
+        if cfg.data.get('one_more', 0) == 100:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-ori', real_model='Kinetics-400-ori', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 101:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora-ori1', real_model='Kinetics-400-ori1', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+
+        if cfg.data.get('one_more', 0) == 81:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora', real_model='OpenVidHD', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 82:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='DynamicCrafter', real_model='OpenVidHD', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more])
+        if cfg.data.get('one_more', 0) == 83:
+            dataset_one_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='OpenSora', real_model='Kinetics-400',
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            dataset_two_more = get_paired_dataset(cfg.data, processor=model.processor, generation_model='DynamicCrafter', real_model='OpenVidHD', 
+                                    mode="train", load_len=10000, pn_ratio=pn_ratio,
+                                    num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, no_resize=cfg.data.no_resize,
+                                    vae=vae, recon_prop=recon_prop, Q_attr=Q_attr,
+                                    quality_grl=quality_grl)
+            train_dataset = ConcatDataset([train_dataset, dataset_one_more, dataset_two_more])
+        
         train_loader = DataLoader(train_dataset, batch_size=cfg.data.batch_size, shuffle=True, num_workers=cfg.data.num_workers,
                                   worker_init_fn=seed_worker, generator=generator)
     # val data
@@ -321,6 +405,7 @@ def main(cfg: DictConfig):
             epoch_pbar.set_postfix({
                 **train_results,
             })
+            torch.cuda.empty_cache()
 
     csv_path = os.path.join(cfg.log_path, f"{cfg.experiment_name}/{cfg.data.dataset_name}/{cfg.model.name}_train_results.csv")
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)

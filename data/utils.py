@@ -77,16 +77,19 @@ def get_generation_models(dataset_name):
                 "train": ["LSVQ"],
                 "val":   ["LSVQ"],
                 "test":  [
-                    "LSVQ",
-                    "LSVQ_1080p",
+                    # "LSVQ",
+                    # "LSVQ_1080p",
                     "RealVSR",
                     "MSR-VTT",
                     "Youku",
                     "Kinetics-400",
                     "InternVid-AES",
-                    "GenBuster-200K-benchmark",
-                    "GenBuster-200K-test",
-                    "OpenVidHD"
+                    # "GenBuster-200K-benchmark",
+                    # "GenBuster-200K-test",
+                    "OpenVidHD",
+                    "Vript",
+                    "HD-VG-130M",
+                    "UltraVideo",
                 ]
             },
             "fake": {
@@ -158,7 +161,9 @@ def get_all_generation_models(dataset_name):
 def get_label_from_generation_model(generation_model):
     if generation_model in ["MSVD", "MSR-VTT", "Kinetics-400", "Youku-mPLUG", "Youku", "vsr", "LSVQ", "LSVQ_1080p", 
                             "RealVSR", "InternVid-AES", "Uniform", "GenBuster-200K-benchmark", "GenBuster-200K-test", 
-                            "OpenVidHD", "InternVid-AES-D", "OpenVid-UHQ", "InternVid-AES-E-1K", "K400-1k", "Kinetics-400-M"]:
+                            "OpenVidHD", "InternVid-AES-D", "OpenVid-UHQ", "InternVid-AES-E-1K", "K400-1k", 
+                            "Kinetics-400-M", "Kinetics-400-UM", "Kinetics-400-ori", "Kinetics-400-MM1", "Kinetics-400-MM2", "Kinetics-400-MM3", "Kinetics-400-MM5", "Kinetics-400-ori1", 
+                            "Vript", "HD-VG-130M", "UltraVideo"]:
         return "real"
     else:
         return "fake"

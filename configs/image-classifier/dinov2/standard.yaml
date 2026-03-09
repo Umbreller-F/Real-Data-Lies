@@ -44,6 +44,7 @@ data:
   sample_strategy: 'fixed_interval'
   no_resize: False
   use_aug: True
+  one_more: False
   
 task_type: standard # standard / unbalance
 debug: False

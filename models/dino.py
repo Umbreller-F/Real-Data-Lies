@@ -44,13 +44,19 @@ class DINOv2(nn.Module):
 
 class DINOv3(nn.Module):
     def __init__(self,
-                 model_name: Literal['dinov3-vitb16', 'dinov3-vitl16'] = 'dinov3-vitl16',
+                 model_name: Literal['dinov3-vitb16', 'dinov3-vitl16', 'dinov3-convnext-base', 'dinov3-convnext-large'] = 'dinov3-vitl16',
                  output_dim: int = 1,
                  dropout_rate: float = 0.1):
         super().__init__()
         self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
         self.model = AutoModel.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
-        embed_dim = self.model.config.hidden_size
+        if model_name in ['dinov3-convnext-base', 'dinov3-convnext-large']:
+            if model_name == 'dinov3-convnext-base':
+                embed_dim = 1024
+            else:
+                embed_dim = 1536
+        else:
+            embed_dim = self.model.config.hidden_size
         # Replace classification head with custom binary classifier
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
@@ -96,22 +102,48 @@ if __name__ == "__main__":
     # outputs = model(**inputs)
     # last_hidden_states = outputs.last_hidden_state
 
-    import torch
-    from transformers import AutoImageProcessor, AutoModel
+    # import torch
+    # from transformers import AutoImageProcessor, AutoModel
     from transformers.image_utils import load_image
+
+    # url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+    # image = load_image(url)
+
+    # pretrained_model_name = "facebook/dinov3-vitl16-pretrain-lvd1689m"
+    # processor = AutoImageProcessor.from_pretrained(pretrained_model_name, local_files_only=True)
+    # model = AutoModel.from_pretrained(pretrained_model_name, local_files_only=True)
+
+    # inputs = processor(images=image, return_tensors="pt").to(model.device)
+    # with torch.inference_mode():
+    #     outputs = model(**inputs)
+
+    # pooled_output = outputs.pooler_output
+    # print("Pooled output shape:", pooled_output.shape)
+
+    # breakpoint()
 
     url = "http://images.cocodataset.org/val2017/000000039769.jpg"
     image = load_image(url)
-
-    pretrained_model_name = "facebook/dinov3-vitl16-pretrain-lvd1689m"
-    processor = AutoImageProcessor.from_pretrained(pretrained_model_name, local_files_only=True)
-    model = AutoModel.from_pretrained(pretrained_model_name, local_files_only=True)
-
+    pretrained_model_name = "facebook/dinov3-convnext-large-pretrain-lvd1689m"
+    processor = AutoImageProcessor.from_pretrained(pretrained_model_name, token="REDACTED")
+    model = AutoModel.from_pretrained(
+        pretrained_model_name, 
+        device_map="auto", 
+        token="REDACTED"
+    )
+    summary(model)
     inputs = processor(images=image, return_tensors="pt").to(model.device)
     with torch.inference_mode():
         outputs = model(**inputs)
 
     pooled_output = outputs.pooler_output
     print("Pooled output shape:", pooled_output.shape)
-
     breakpoint()
+
+    # model = DINOv3('dinov3-convnext-base')
+    # # model = DINOv2()
+    # summary(model)
+    # model = model.cuda()
+    # tensor = torch.tensor(np.random.rand(4, 3, 224, 224), dtype=torch.float32).cuda()
+    # print(model(tensor).shape)
+    # breakpoint()
