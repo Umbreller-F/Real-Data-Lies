@@ -1,12 +1,10 @@
 from utils.experiment_utils import set_seed
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, MYVIDEOS, MYVIDEOS_COMPRESSED, MYVIDEOS_CROPPED, VAE, TEST100, TEST50, REALDIST_PIKA, GENVIDEO_Y_PIKA, REALDIST_I_PIKA, REALDIST_U_PIKA
-# from data.video_dataset import get_video_dataset, get_composite_video_dataset
+from data.dataset_split import RDL
 from data.dataset import get_single_dataset
 from omegaconf import DictConfig, OmegaConf
 from models.timesformer import TimeSformer
-from models.videomaev2 import VideoMAEv2, VideoMAEv2_Q1
-from models.videomaev2_x import VideoMAEv2_X
-from models.demamba import XCLIP_DeMamba, XCLIP_DeMamba_Q1, XCLIP_DeMamba_Q2, CLIP_DeMamba
+from models.videomaev2 import VideoMAEv2
+from models.demamba import XCLIP_DeMamba, CLIP_DeMamba
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
 from utils.train_utils import *
@@ -32,8 +30,6 @@ def test(cfg: DictConfig):
     logger.info('Testing configuration:\n' + OmegaConf.to_yaml(cfg))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     set_seed(cfg.seed)
-    quality_grl = cfg.get('quality_grl', False)
-    Q_attr = cfg.model.get('Q_attr', 0)
     # endregion
 
     # region Load Model
@@ -41,27 +37,12 @@ def test(cfg: DictConfig):
     if 'TimeSformer' in cfg.model.name:
         model = TimeSformer(model_name=cfg.model.name, pretrained=cfg.model.pretrained, freeze_backbone=False)
     elif cfg.model.name == "VideoMAEv2":
-        # if cfg.model.get('extra', False):
-        #     model = VideoMAEv2_X()
-        # else:
-        #     if cfg.model.get('Large', False):
-        #         model = VideoMAEv2(model_type='VideoMAEv2-Large')
-        #     else:
-        #         model = VideoMAEv2()
-        if Q_attr == 0:
-            model = VideoMAEv2()
-        elif Q_attr == 1:
-            model = VideoMAEv2_Q1()
+        model = VideoMAEv2()
     elif cfg.model.name == "DeMamba":
         if cfg.model.clip:
             model = CLIP_DeMamba()
         else:
-            if Q_attr == 0:
-                model = XCLIP_DeMamba(quality_grl=quality_grl)
-            elif Q_attr == 1:
-                model = XCLIP_DeMamba_Q1()
-            elif Q_attr == 2:
-                model = XCLIP_DeMamba_Q2()
+            model = XCLIP_DeMamba()
     elif cfg.model.name == "DINOv2":
         model = DINOv2()
     elif cfg.model.name == "DINOv3":
@@ -72,7 +53,7 @@ def test(cfg: DictConfig):
         model = resnet50()
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
-    logger.info(f"Model's procesor:\n{model.processor}")
+    logger.info(f"Model's processor:\n{model.processor}")
     # endregion
 
     # region Load ckpt
@@ -98,33 +79,10 @@ def test(cfg: DictConfig):
 
     # region Load Test Data
     logger.info(f"Loading test data of {cfg.data.dataset_name}...")
-    if cfg.data.dataset_name == "GenVideo":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_PIKA
-        elif cfg.data.generation_model == "SEINE":
-            generation_models = GENVIDEO_SEINE
-    elif cfg.data.dataset_name == "GenVideo-Youku":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_Y_PIKA
-    elif cfg.data.dataset_name == "RealDist":
-        if cfg.data.generation_model == "Pika":
-            generation_models = REALDIST_PIKA
-    elif cfg.data.dataset_name == "RealDist-I":
-        if cfg.data.generation_model == "Pika":
-            generation_models = REALDIST_I_PIKA
-    elif cfg.data.dataset_name == "RealDist-U":
-        if cfg.data.generation_model == "Pika":
-            generation_models = REALDIST_U_PIKA
-    # elif cfg.data.dataset_name == "myvideos":
-    #     generation_models = MYVIDEOS
-    # elif cfg.data.dataset_name == "myvideos_compressed":
-    #     generation_models = MYVIDEOS_COMPRESSED
-    # elif cfg.data.dataset_name == "myvideos_cropped":
-    #     generation_models = MYVIDEOS_CROPPED
-    # elif cfg.data.dataset_name == "test100":
-    #     generation_models = TEST100
-    # elif cfg.data.dataset_name == "test50":
-    #     generation_models = TEST50
+    if cfg.data.dataset_name == "RDL":
+        generation_models = RDL
+    else:
+        raise NotImplementedError(f"Test dataset {cfg.data.dataset_name} Not supported")
     
     load_len = cfg.data.test_load_len
     
@@ -137,8 +95,7 @@ def test(cfg: DictConfig):
     for data_model in data_models:
         test_dataset = get_single_dataset(
             cfg.data, mode="test", data_model=data_model, load_len=load_len,
-            num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor, no_resize=cfg.data.no_resize, 
-            Q_attr=Q_attr,
+            num_frames=cfg.data.num_frames, sample_strategy=cfg.data.sample_strategy, processor=model.processor
         )
         if len(test_dataset) == 0:
             logger.warning(f"Test data model {data_model} has no samples, skipping...")
@@ -155,7 +112,7 @@ def test(cfg: DictConfig):
 
     logger.info("Starting evaluation...")
     for data_model in tqdm(data_models, desc="Testing", unit="data model"):
-        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, best_threshold, device, Q_attr=Q_attr)
+        data_model_results[data_model] = test_on_dataloader(model, test_dataloaders[data_model], cfg.data.feature_type, best_threshold, device)
     for real_model in generation_models["real"]["test"]:
         if real_model in empty_data_models:
             continue

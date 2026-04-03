@@ -14,8 +14,7 @@ class VideoMAEv2(nn.Module):
     def __init__(self,
                  model_type: Literal['VideoMAEv2-Base', 'VideoMAEv2-Large'] = 'VideoMAEv2-Base',
                  output_dim: int = 1,
-                 dropout_rate: float = 0.1,
-                 enable_grl: bool = False):
+                 dropout_rate: float = 0.1):
         super().__init__()
         config = AutoConfig.from_pretrained(f"OpenGVLab/{model_type}", trust_remote_code=True, local_files_only=True)
         self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_type}", local_files_only=True)
@@ -32,53 +31,9 @@ class VideoMAEv2(nn.Module):
             nn.Linear(128, output_dim)
         )
     
-    def forward(self, x, output_attentions: bool = False, grl_alpha: float = 1.0):
+    def forward(self, x):
         embeddings = self.model(pixel_values=x.permute(0, 2, 1, 3, 4))
         logits = self.classifier(embeddings)
-        return logits
-    
-    @property
-    def processor(self):
-        return deepcopy(self._processor)
-    
-
-class VideoMAEv2_Q1(nn.Module):
-    def __init__(self,
-                 model_type: Literal['VideoMAEv2-Base', 'VideoMAEv2-Large'] = 'VideoMAEv2-Base',
-                 output_dim: int = 1,
-                 dropout_rate: float = 0.1):
-        super().__init__()
-        config = AutoConfig.from_pretrained(f"OpenGVLab/{model_type}", trust_remote_code=True, local_files_only=True)
-        self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_type}", local_files_only=True)
-        self.model = AutoModel.from_pretrained(f"OpenGVLab/{model_type}", config=config, trust_remote_code=True, local_files_only=True)
-        embed_dim = self.model.config.model_config['embed_dim']
-
-        self.attr_embed_dim = 768  # 768
-        self.attr_mlp = nn.Sequential(
-            nn.Linear(3, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, self.attr_embed_dim),
-            nn.ReLU()
-        )
-
-        # Replace classification head with custom binary classifier
-        self.classifier = nn.Sequential(
-            nn.Dropout(dropout_rate),
-            nn.Linear(embed_dim + 768, 512),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(512, 128),
-            nn.ReLU(),
-            nn.Linear(128, output_dim)
-        )
-    
-    def forward(self, x, attributes):
-        embeddings = self.model(pixel_values=x.permute(0, 2, 1, 3, 4))
-        # attributes shape: [B, 3] -> [B, 768]
-        attr_feat = self.attr_mlp(attributes)
-        combined_features = torch.cat((embeddings, attr_feat), dim=1)
-        logits = self.classifier(combined_features)
         return logits
     
     @property

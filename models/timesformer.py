@@ -14,8 +14,7 @@ class TimeSformer(nn.Module):
                  pretrained: bool = True,
                  output_dim: int = 1,
                  freeze_backbone: bool = False,
-                 dropout_rate: float = 0.1,
-                 enable_grl: bool = False):
+                 dropout_rate: float = 0.1):
         """
         Timesformer video binary classification model
         
@@ -70,7 +69,7 @@ class TimeSformer(nn.Module):
             param.requires_grad = False
         logger.info("Backbone frozen, only classifier head will be trained")
     
-    def forward(self, x, output_attentions: bool = False, grl_alpha: float = 1.0):
+    def forward(self, x, output_attentions: bool = False):
         outputs = self.model(pixel_values=x, output_attentions=output_attentions)
         if output_attentions:
             return outputs.logits, outputs.attentions

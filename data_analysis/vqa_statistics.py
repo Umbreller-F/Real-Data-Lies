@@ -119,7 +119,7 @@ def calculate_score_stats(csv_dir, output_csv="score_statistics.csv"):
 
 if __name__ == "__main__":
     # Configuration
-    CSV_DIR = "data_analysis/results/VQA"  # Directory containing CSV files
+    CSV_DIR = "data_analysis/VQA_results"  # Directory containing CSV files
     OUTPUT_FILE = "score_statistics.csv"  # Output filename
     
     # Calculate statistics

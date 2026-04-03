@@ -4,9 +4,17 @@ import numpy as np
 import matplotlib.patches as mpatches
 
 # Load the statistics CSV file
-df = pd.read_csv('./data_analysis/results/VQA/score_statistics.csv')
+df = pd.read_csv('data_analysis/VQA_results/score_statistics.csv')
 df.columns = df.columns.str.strip()
 df['Model'] = df['Model'].str.strip()
+
+models_to_leave_out = ['LSVQ', 'LSVQ_1080p']
+df = df[~df['Model'].isin(models_to_leave_out)]
+rename_map = {
+    'Youku': 'Youku-mPLUG'
+}
+df['Model'] = df['Model'].replace(rename_map)
+# breakpoint()
 
 # Generate horizontal bar charts for each score type
 for score_type in ['Aesthetic', 'Technical', 'Overall']:
@@ -14,7 +22,7 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
     df_sorted = df.sort_values(f'{score_type}_Mean', ascending=False)
     
     # Identify real video models to be excluded
-    exclude_models = ['Kinetics-400', 'MSR-VTT', 'RealVSR', 'Youku', 'LSVQ', 'LSVQ_1080p', 'InternVid_AES']
+    exclude_models = ['Kinetics-400', 'MSR-VTT', 'RealVSR', 'Youku-mPLUG', 'LSVQ', 'LSVQ_1080p', 'InternVid-AES', 'OpenVidHD', 'Vript', 'HD-VG-130M', 'UltraVideo']
     df_aigv = df_sorted[~df_sorted['Model'].isin(exclude_models)]
     avg_aigv = df_aigv[f'{score_type}_Mean'].mean()
     print(avg_aigv)
@@ -27,9 +35,9 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
     colors = []
     for model in df_sorted['Model']:
         if model in exclude_models:
-            colors.append('#e74c3c')  # Red for excluded (non-AIGV) models
+            colors.append('#3498db')  # Blue for excluded (non-AIGV) models
         else:
-            colors.append('#3498db')  # Blue for AI-generated video models
+            colors.append('#e74c3c')  # Red for AI-generated video models
 
     # Create horizontal bar chart with error bars
     bars = plt.barh(y_pos, df_sorted[f'{score_type}_Mean'], 
@@ -40,10 +48,11 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
                     linewidth=1)
 
     # Axis labels and title
-    plt.xlabel(f'{score_type} Score (higher is better)', fontsize=12)
-    plt.ylabel('Model', fontsize=12)
-    plt.title(f'{score_type} Scores by Model', 
-            fontsize=14, fontweight='bold', pad=20)
+    # plt.xlabel(f'{score_type} Score (higher is better)', fontsize=12)
+    plt.xlabel(f'DOVER Score', fontsize=12, fontweight='bold')
+    plt.ylabel('Real Dataset / AIGV Model', fontsize=12, fontweight='bold')
+    # plt.title(f'{score_type} Scores by Model', 
+    #         fontsize=14, fontweight='bold', pad=20)
 
     # Set y-axis ticks to model names
     plt.yticks(y_pos, df_sorted['Model'], fontsize=10)
@@ -58,13 +67,13 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
 
     # Add vertical line for average AIGV score
     plt.axvline(x=avg_aigv, color='red', linestyle='--', 
-                alpha=0.7, linewidth=2, label=f'avg_aigv: {avg_aigv:.2f}')
+                alpha=1.0, linewidth=2, label=f'AIGV-Avg: {avg_aigv:.2f}')
 
     # Create legend patches
     legend_patches = [
-        mpatches.Patch(color='#3498db', label='AI-Generated Video Models'),
-        mpatches.Patch(color='#e74c3c', label='Excluded (non-AIGV)'),
-        plt.Line2D([0], [0], color='red', linestyle='--', label=f'avg_aigv: {avg_aigv:.2f}')
+        mpatches.Patch(color='#e74c3c', label='AIGV Models'),
+        mpatches.Patch(color='#3498db', label='Real Datasets'),
+        plt.Line2D([0], [0], color='red', linestyle='--', label=f'AIGV-Avg: {avg_aigv:.2f}')
     ]
     plt.legend(handles=legend_patches, fontsize=9, loc='lower right')
 
@@ -77,5 +86,6 @@ for score_type in ['Aesthetic', 'Technical', 'Overall']:
 
     # Save the figure
     plt.tight_layout()
-    plt.savefig(f'./data_analysis/results/histograms/VQA_{score_type}_scores.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'data_analysis/VQA_results/VQA_{score_type}_scores.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'data_analysis/VQA_results/VQA_{score_type}_scores.pdf', dpi=300, bbox_inches='tight')
     plt.close()  # Close the figure to free memory

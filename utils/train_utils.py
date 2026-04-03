@@ -10,7 +10,8 @@ from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_sco
 import os
 import itertools
 
-def train_classifer(model, train_dataloader, optimizer, device, writer, global_step, criterion, max_epochs, quality_grl, quality_score_criterion, Q_attr):
+
+def train_classifer(model, train_dataloader, optimizer, device, writer, global_step, criterion, max_epochs):
     model.to(device)
     model.train()
 
@@ -18,51 +19,17 @@ def train_classifer(model, train_dataloader, optimizer, device, writer, global_s
     running_train_loss = 0.0
     
     for batch in tqdm(train_dataloader, desc="Training Progress", position=1, leave=False, total=len(train_dataloader)):
-        if not quality_grl:
-            if Q_attr == 0:
-                inputs, labels, video_ids = batch
-                if global_step  % 500 == 0:
-                    writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
-                inputs, labels = inputs.float().to(device), labels.float().to(device)
-                logits = model(inputs)
-            elif Q_attr in [1, 2]:
-                inputs, labels, video_ids, Q_attr_scores = batch
-                if global_step  % 500 == 0:
-                    writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
-                inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
-                logits = model(inputs, Q_attr_scores)
-
-            loss = criterion(logits, labels)
-        else:
-            len_loader = len(train_dataloader)
-            target_saturation_epoch = 3
-            base_alpha = 0.0
-            total_steps_for_alpha = target_saturation_epoch * len_loader
-            current_step = global_step + 1
-            p = float(current_step) / total_steps_for_alpha
-            dynamic_part = 2. / (1. + np.exp(-10 * p)) - 1
-            alpha = min(1.0, base_alpha + dynamic_part)
-            weight_score = 1.0
-            
-            inputs, labels, video_ids, gt_scores = batch
-            if global_step  % 500 == 0:
-                writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
-            inputs, labels, gt_scores = inputs.float().to(device), labels.float().to(device), gt_scores.float().to(device)
-            logits, quality_scores = model(inputs, alpha=alpha)
-            classification_loss = criterion(logits, labels)
-            score_prediction_loss = quality_score_criterion(quality_scores, gt_scores)
-            loss = classification_loss + weight_score * score_prediction_loss
+        inputs, labels, video_ids = batch
+        if global_step  % 500 == 0:
+            writer.add_histogram("train/inputs_distribution", inputs.cpu(), global_step=global_step)
+        inputs, labels = inputs.float().to(device), labels.float().to(device)
+        logits = model(inputs)
+        loss = criterion(logits, labels)
         
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        if not quality_grl:
-            writer.add_scalar("train/loss", loss.item(), global_step=global_step)
-        else:
-            writer.add_scalar("train/loss", loss.item(), global_step=global_step)
-            writer.add_scalar("train/classification_loss", classification_loss.item(), global_step=global_step)
-            writer.add_scalar("train/score_prediction_loss", weight_score * score_prediction_loss.item(), global_step=global_step)
-            writer.add_scalar("train/alpha", alpha, global_step=global_step)
+        writer.add_scalar("train/loss", loss.item(), global_step=global_step)
         running_train_loss += loss.item()
         global_step += 1
         # tqdm.write(f"Step: {global_step} Loss: {loss.item()}")
@@ -74,6 +41,59 @@ def train_classifer(model, train_dataloader, optimizer, device, writer, global_s
         "train_loss": f"{avg_train_loss:.4f}",
         "global_step": global_step,
     }
+
+
+@torch.no_grad()
+def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step):
+    """
+    return:
+        results = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
+    """
+    model.eval()
+    results = []
+    for val_name in val_dataloaders:
+        val_dataloader = val_dataloaders[val_name]
+        # running_val_loss = 0.0
+        all_labels = []
+        all_predicted = []
+        all_raw_preds = []
+
+        start_time = time.time()
+
+        for batch in tqdm(val_dataloader, desc="Evaluating", leave=False, ncols=100):
+            inputs, labels, video_ids = batch
+            inputs, labels = inputs.float().to(device), labels.to(device)
+            logits = model(inputs)
+            output_pred = logits[:,0].sigmoid().cpu()
+            
+            # Collect labels and predictions for metric calculation
+            all_labels.extend(labels.cpu().numpy())
+            all_raw_preds.extend(output_pred.cpu().numpy())
+
+        # Calculate Precision, Recall, and F1 Score using sklearn
+        p, r, thresholds = precision_recall_curve(all_labels, all_raw_preds)
+        f1_scores = 2 * (p[:-1] * r[:-1]) / (p[:-1] + r[:-1] + 1e-10)
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx]
+        all_predicted = (np.array(all_raw_preds) >= best_threshold).astype(int)
+        logger.info(f"[{val_name}] Best Threshold: {best_threshold:.4f}")
+        
+        precision = precision_score(all_labels, all_predicted)
+        recall = recall_score(all_labels, all_predicted)
+        f1 = f1_score(all_labels, all_predicted)
+        acc = accuracy_score(all_labels, all_predicted)
+        auroc = roc_auc_score(all_labels, all_raw_preds)
+        end_time = time.time()
+        validation_time = end_time - start_time
+        results.append([val_name.split("/")[0], val_name.split("/")[1], recall, precision, f1, acc, auroc])
+    headers = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
+    # results.append(["Mean", "Mean", *[sum([x[i] for x in results])/len(results) for i in range(2, 7)]])
+    for result in results:
+        fake, real = result[0], result[1]
+        for header, value in zip(headers[2:], result[2:]):
+            writer.add_scalar(f"val/{fake}_{real}_{header}", value, global_step=global_step)
+    return headers, results, best_threshold
+
 
 def train_dMMD(model, train_dataloaders, optimizer, device, global_step, writer):
     model.train()
@@ -161,67 +181,6 @@ def train_dMMD_unbalance(model, train_dataloaders, optimizer, device, global_ste
             "sigma0_u": sigma0_u,
             "STAT_u": STAT_u.item(),
             "global_step": global_step}
-
-@torch.no_grad()
-def val_classifer(model, val_dataloaders, loss_fn, device, writer, global_step, quality_grl, Q_attr):
-    """
-    return:
-        results = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
-    """
-    model.eval()
-    results = []
-    for val_name in val_dataloaders:
-        val_dataloader = val_dataloaders[val_name]
-        # running_val_loss = 0.0
-        all_labels = []
-        all_predicted = []
-        all_raw_preds = []
-
-        start_time = time.time()
-
-        for batch in tqdm(val_dataloader, desc="Evaluating", leave=False, ncols=100):
-            if Q_attr == 0:
-                inputs, labels, video_ids = batch
-                inputs, labels = inputs.float().to(device), labels.to(device)
-
-                if not quality_grl:
-                    logits = model(inputs)
-                else:
-                    logits, _ = model(inputs)
-            elif Q_attr in [1, 2]:
-                inputs, labels, video_ids, Q_attr_scores = batch
-                inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
-                logits = model(inputs, Q_attr_scores)
-
-            output_pred = logits[:,0].sigmoid().cpu()
-            
-            # Collect labels and predictions for metric calculation
-            all_labels.extend(labels.cpu().numpy())
-            all_raw_preds.extend(output_pred.cpu().numpy())
-
-        # Calculate Precision, Recall, and F1 Score using sklearn
-        p, r, thresholds = precision_recall_curve(all_labels, all_raw_preds)
-        f1_scores = 2 * (p[:-1] * r[:-1]) / (p[:-1] + r[:-1] + 1e-10)
-        best_idx = np.argmax(f1_scores)
-        best_threshold = thresholds[best_idx]
-        all_predicted = (np.array(all_raw_preds) >= best_threshold).astype(int)
-        logger.info(f"[{val_name}] Best Threshold: {best_threshold:.4f}")
-        
-        precision = precision_score(all_labels, all_predicted)
-        recall = recall_score(all_labels, all_predicted)
-        f1 = f1_score(all_labels, all_predicted)
-        acc = accuracy_score(all_labels, all_predicted)
-        auroc = roc_auc_score(all_labels, all_raw_preds)
-        end_time = time.time()
-        validation_time = end_time - start_time
-        results.append([val_name.split("/")[0], val_name.split("/")[1], recall, precision, f1, acc, auroc])
-    headers = ["Fake", "Real", "Recall", "Precision", "F1", "Accuracy", "AUROC"]
-    # results.append(["Mean", "Mean", *[sum([x[i] for x in results])/len(results) for i in range(2, 7)]])
-    for result in results:
-        fake, real = result[0], result[1]
-        for header, value in zip(headers[2:], result[2:]):
-            writer.add_scalar(f"val/{fake}_{real}_{header}", value, global_step=global_step)
-    return headers, results, best_threshold
 
 @torch.no_grad()
 def get_ref_features(model, ref_dataloader, ref_len=150):

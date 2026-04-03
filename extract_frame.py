@@ -4,91 +4,58 @@ from loguru import logger
 
 
 if __name__ == "__main__":
-    # for mode in ['train', 'val', 'test']:
-    #     # dataset_frame_extract(data_path='../Data/GenVideo', generation_model=GENVIDEO_PIKA['real'][mode][0], label='real', mode=mode)
-    #     for gen_model in GENVIDEO_PIKA['fake'][mode]:
-    #         dataset_frame_extract(data_path='../Data/GenVideo', generation_model=gen_model, label='fake', mode=mode)
-    # for mode in ['train', 'val', 'test']:
-    #     dataset_frame_extract(data_path='../Data/GenVideo', generation_model=GENVIDEO_SEINE['real'][mode][0], label='real', mode=mode)
-    #     for gen_model in GENVIDEO_SEINE['fake'][mode]:
-    #         dataset_frame_extract(data_path='../Data/GenVideo', generation_model=gen_model, label='fake', mode=mode)
-    
-    # # dataset_frame_extract(data_path='../Data/myvideos', generation_model=MYVIDEOS['real']['test'][0], label='real', mode='test', len_load=100)
-    # for gen_model in MYVIDEOS['fake']['test']:
-    #     dataset_frame_extract(data_path='../Data/myvideos', generation_model=gen_model, label='fake', mode='test')
-    
-    # dataset_frame_extract(data_path='../Data/myvideos_compressed', generation_model=MYVIDEOS_COMPRESSED['real']['test'][0], label='real', mode='test')
-    # for gen_model in MYVIDEOS_COMPRESSED['fake']['test']:
-    #     dataset_frame_extract(data_path='../Data/myvideos_compressed', generation_model=gen_model, label='fake', mode='test')
+    RDL = {
+        "real": {
+            "train": [
+                "Kinetics-400",
+                "InternVid-AES",
+                "Youku",
+                "OpenVidHD",
+                "Vript"
+            ],
+            "val":   [
+                "Kinetics-400",
+                "InternVid-AES",
+                "Youku",
+                "OpenVidHD"
+            ],
+            "test":  [
+                "InternVid-AES",
+                "RealVSR",
+                "MSR-VTT",
+                "Youku",
+                "Kinetics-400",
+                "Vript",
+                "HD-VG-130M",
+                "OpenVidHD",
+                "UltraVideo",
+            ]
+        },
+        "fake": {
+            "train": [
+                "Pika",
+                "OpenSora",
+                "DynamicCrafter"
+            ],
+            "val":   [
+                "SEINE",
+                "Pika", # VQA only
+            ],
+            "test":  [
+                "ModelScope", 
+                "MorphStudio",  
+                "MoonValley",
+                "Show_1",
+                "Gen2", 
+                "Crafter",
+                "Lavie", 
+                "Sora", 
+                "WildScrape"
+            ]
+        },
+    }
 
-    # for gen_model in TEST100['fake']['test']:
-    #     dataset_frame_extract(data_path='../Data/test100', generation_model=gen_model, label='fake', mode='test')
-    # dataset_frame_extract(data_path='../Data/test100', generation_model='vsr', label='real', mode='test')
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in REALDIST_PIKA['real'][mode]:
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=real_model, label='real', mode=mode)
-        # for gen_model in REALDIST_PIKA['fake'][mode]:
-        #     dataset_frame_extract(data_path='../Data/RealDist', generation_model=gen_model, label='fake', mode=mode)
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in GENVIDEO_PIKA['real'][mode]:
-    #         dataset_frame_extract(data_path='../Data/GenVideo', generation_model=real_model, label='real', mode=mode)
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in GENVIDEO_Y_PIKA['real'][mode]:
-    #         dataset_frame_extract(data_path='../Data/GenVideo', generation_model=real_model, label='real', mode=mode)
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in REALDIST_I_PIKA['real'][mode]:
-    #         logger.info(f'Processing real model: {real_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=real_model, label='real', mode=mode)
-    #     for gen_model in REALDIST_I_PIKA['fake'][mode]:
-    #         logger.info(f'Processing fake model: {gen_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=gen_model, label='fake', mode=mode)
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in REALDIST_U_PIKA['real'][mode]:
-    #         logger.info(f'Processing real model: {real_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=real_model, label='real', mode=mode)
-    #     for gen_model in REALDIST_U_PIKA['fake'][mode]:
-    #         logger.info(f'Processing fake model: {gen_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=gen_model, label='fake', mode=mode)
-
-    # for mode in ['train', 'val', 'test']:
-    #     for real_model in REALDIST_O_PIKA['real'][mode]:
-    #         logger.info(f'Processing real model: {real_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=real_model, label='real', mode=mode)
-    #     for gen_model in REALDIST_O_PIKA['fake'][mode]:
-    #         logger.info(f'Processing fake model: {gen_model} for mode: {mode}')
-    #         dataset_frame_extract(data_path='../Data/RealDist', generation_model=gen_model, label='fake', mode=mode)
-
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Pika-D', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='InternVid-AES-D', label='real', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenVid-UHQ', label='real', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenVidHD', label='real', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenVidHD', label='real', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenVidHD', label='real', mode='test')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Pika-U', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='K400-1k', label='real', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Pika-Rest-1k', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Pika-DE-1k', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenSora', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='OpenSora', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='opensora_tibu', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Pika-2', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='SD', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='DynamicCrafter', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='DynamicCrafter_tibu', label='fake', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Vript', label='real', mode='train')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Vript', label='real', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Vript', label='real', mode='test')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='HD-VG-130M', label='real', mode='test')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='I2VGEN_XL', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='SVD', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='Latte', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='ZeroScope', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='DynamicCrafter', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='SD', label='fake', mode='val')
-    # dataset_frame_extract(data_path='../Data/RealDist', generation_model='VideoCrafter', label='fake', mode='val')
-    dataset_frame_extract(data_path='../Data/RealDist', generation_model='UltraVideo', label='real', mode='test')
+    for label in ['real', 'fake']:
+        for mode in ['train', 'val', 'test']:
+            for data_model in RDL[label][mode]:
+                dataset_frame_extract(data_path='../Data/RDL', generation_model=data_model, label=label, mode=mode)

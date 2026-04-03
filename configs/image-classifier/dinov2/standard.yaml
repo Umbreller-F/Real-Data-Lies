@@ -21,35 +21,28 @@ trainer:
   val_check_interval: 1
   num_gpus: 1
   device_ids: [0,1,2,3]
+  early_stop_patience: 5
 
 data:
   batch_size: 64
   val_batch_size: 128
   feature_type: image
-  dataset_name: "GenVideo"
+  dataset_name: "RDL"
   num_workers: 64
   data_path: "../Data/${data.dataset_name}"
   num_frames: 8
-  generation_model: "Pika" 
   input_shape: [224,224]
   train_real_model: "Kinetics-400"
+  train_fake_model: "Pika"
   val_real_model: "Kinetics-400"
-  test_real_model: "MSR-VTT"
+  val_fake_model: "SEINE"
   train_load_len: 10000
   val_load_len: 1000
-  diffuse_steps: 5
-  vae_recon: False
-  vae_model: 'Wan2.2'
-  recon_prop: 0.5
   sample_strategy: 'fixed_interval'
-  no_resize: False
-  use_aug: True
-  one_more: False
+  data_expansion: False
   
 task_type: standard # standard / unbalance
 debug: False
 experiment_name: "standard-Pika-npr"
 save_ckpt_dir: "./results/ckpts/baselines/${experiment_name}/"
 log_path: "./results/logs/baselines/"
-
-revise: True

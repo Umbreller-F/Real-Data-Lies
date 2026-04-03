@@ -24,28 +24,18 @@ trainer:
 
 data:
   feature_type: image
-  dataset_name: "GenVideo"
-  num_workers: 16
+  dataset_name: "RDL"
+  num_workers: 64
   data_path: "../Data/${data.dataset_name}"
   num_frames: 8
-  generation_model: "Pika" 
   input_shape: [256,256]
-  train_real_model: "Kinetics-400"
-  val_real_model: "Kinetics-400"
-  test_real_model: "MSR-VTT"
   train_load_len: 10000
   test_load_len: 1000
   batch_size: 64
-  val_batch_size: 128
-  vae_recon: False
-  vae_model: 'Wan2.2'
-  recon_prop: 0.5
+  val_batch_size: 64
   sample_strategy: 'fixed_interval'
-  no_resize: False
 
 ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
 experiment_name: "standard-Pika-npr"
 log_path: "./results/test/baselines"
-save_csv_file: standard-Pika-npr.csv
-
-revise: True
+save_csv_file: "${data.dataset_name}.csv"

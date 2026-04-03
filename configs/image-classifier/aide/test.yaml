@@ -1,0 +1,41 @@
+defaults:
+  - _self_
+
+hydra:
+  run:
+    dir: "results/outputs/" 
+
+model:
+  name: "AIDE"
+
+seed: 42
+trainer:
+  max_epochs: 30
+  optimizer:
+    name: "adamW"
+    lr: 1e-5
+    betas: [0.9,0.999]
+    weight_decay: 0.1
+  loss_fn:
+    name: "binary_cross_entropy"
+  val_check_interval: 1
+  num_gpus: 1
+  device_ids: [0,1,2,3]
+
+data:
+  feature_type: image
+  dataset_name: "RDL"
+  num_workers: 32
+  data_path: "../Data/${data.dataset_name}"
+  num_frames: 8
+  input_shape: [256,256]
+  train_load_len: 10000
+  test_load_len: 1000
+  batch_size: 32
+  val_batch_size: 128
+  sample_strategy: 'fixed_interval'
+
+ckpt_path: results/ckpts/baselines/standard-Pika-npr/best_auroc_ckpt.pth
+experiment_name: "standard-Pika-npr"
+log_path: "./results/test/baselines"
+save_csv_file: "${data.dataset_name}.csv"

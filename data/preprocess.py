@@ -72,7 +72,7 @@ def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VT
     video_ids = [vid for vid in video_ids if vid.endswith(tuple(SUPPORT_EXT))]
     
     video_ids = [os.path.splitext(video_id)[0] for video_id in video_ids]
-    logger.info(f"len of video_ids is {len(video_ids)}")
+    logger.info(f"[{generation_model} / {mode} / {len(video_ids)} videos]")
     if len(video_ids) == 0:
         breakpoint()
     video_dir = os.path.join(data_path, "video", label, generation_model)
@@ -83,6 +83,8 @@ def dataset_frame_extract(data_path='../Data/myvideos', generation_model='MSR-VT
     ]
     if len(unproceesed_ids) > 0:
         process_video_in_parallel(video_dir, unproceesed_ids, frame_dir)
+    else:
+        logger.info("Videos processed already.")
 # endregion
 
 
