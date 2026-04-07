@@ -10,28 +10,15 @@ import time
 BASE_DIR = "../Data/RDL/video_frames"
 SCRIPT_NAME = "evaluate_a_set_of_videos.py"
 SCRIPT_PATH = "./data_analysis/DOVER/evaluate_a_set_of_videos.py"
-OUTPUT_DIR = "./data_analysis/VQA_results"
+OUTPUT_DIR = "./data_analysis/candidate_VQA_results"
 TARGET_SUBDIRS = [
-    'fake/Crafter/test', 
-    'fake/Gen2/test',
-    'fake/Lavie/test', 
-    'fake/ModelScope/test', 
-    'fake/MoonValley/test', 
-    'fake/MorphStudio/test', 
-    'fake/Pika/val', 
-    'fake/SEINE/val', 
-    'fake/Show_1/test', 
-    'fake/Sora/test', 
-    'fake/WildScrape/test',
-    'real/Kinetics-400/test',
-    'real/MSR-VTT/test', 
-    'real/RealVSR/test', 
-    'real/Youku/test',
-    'real/InternVid-AES/test',
-    'real/OpenVidHD/test',
-    'real/Vript/test',
-    'real/HD-VG-130M/test',
-    'real/UltraVideo/test',
+    'fake/DynamicCrafter/val', 
+    'fake/I2VGEN_XL/val',
+    'fake/Latte/val', 
+    'fake/OpenSora/val', 
+    'fake/SD/val', 
+    'fake/SVD/val', 
+    'fake/VideoCrafter/val',
 ]
 
 

@@ -7,6 +7,7 @@ hydra:
 
 model:
   name: "DeMamba"
+  clip: False
 
 seed: 42
 trainer:

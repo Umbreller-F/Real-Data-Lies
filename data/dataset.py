@@ -35,22 +35,27 @@ class ImageDataset(Dataset):
         self.num_frames = num_frames
         self.frame_sample_rate = frame_sample_rate
         self.input_shape = input_shape
-        self.transform = transforms.Compose([
-                            # transforms.Resize(input_shape),
-                            transforms.Resize(input_shape[0], interpolation=transforms.InterpolationMode.BILINEAR),
-                            transforms.CenterCrop(input_shape),
-                            transforms.ToTensor(),
-                            transforms.Normalize(
-                            mean=[0.485, 0.456, 0.406],    # Mean of ImageNet
-                            std=[0.229, 0.224, 0.225]),    # Std of ImageNet
-                            ])
-        # AIDE transform
-        self.transform_before = transforms.ToTensor()
-        self.dct = DCT_base_Rec_Module()
-        self.transform_after = transforms.Compose([
-                transforms.Resize([256, 256]),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            ])
+        if self.processor is None:
+            self.transform = transforms.Compose([
+                                transforms.Resize(input_shape[0], interpolation=transforms.InterpolationMode.BILINEAR),
+                                transforms.CenterCrop(input_shape),
+                                transforms.ToTensor(),
+                                transforms.Normalize(
+                                mean=[0.485, 0.456, 0.406],    # Mean of ImageNet
+                                std=[0.229, 0.224, 0.225]),    # Std of ImageNet
+                                ])
+            logger.info(f"No processor passed in, use general transform for preprocessing.")
+        elif self.processor == 'AIDE-specific':
+            # AIDE transform
+            self.transform_before = transforms.ToTensor()
+            self.dct = DCT_base_Rec_Module()
+            self.transform_after = transforms.Compose([
+                    transforms.Resize([256, 256]),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                ])
+            logger.info("Use AIDE-specific processor.")
+        else:
+            logger.info("Use backbone's standard preprocessing pipeline.")
 
         self.label = get_label_from_generation_model(self.generation_model)
         # data_dir
@@ -137,7 +142,6 @@ class VideoDataset(Dataset):
             logger.info("Use backbone's standard preprocessing pipeline.")
         else:
             self.transform = transforms.Compose([
-                                # transforms.Resize(input_shape),
                                 transforms.Resize(input_shape[0], interpolation=transforms.InterpolationMode.BILINEAR),
                                 transforms.CenterCrop(input_shape),
                                 transforms.ToTensor(),
@@ -145,7 +149,7 @@ class VideoDataset(Dataset):
                                 mean=[0.485, 0.456, 0.406],  # Mean of ImageNet
                                 std=[0.229, 0.224, 0.225]),    # Std of ImageNet
                                 ])
-            logger.info(f"No processor passed in, use general transform for preprocessing:\n{self.transform}")
+            logger.info(f"No processor passed in, use general transform for preprocessing.")
 
         self.input_shape = input_shape
         self.data_path = data_path

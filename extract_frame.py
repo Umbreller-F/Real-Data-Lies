@@ -39,7 +39,16 @@ if __name__ == "__main__":
             ],
             "val":   [
                 "SEINE",
-                "Pika", # VQA only
+                # VQA only:
+                "Pika",
+                # candidate:
+                "OpenSora", 
+                "SD",
+                "SVD",
+                "I2VGEN_XL",
+                "DynamicCrafter",
+                "Latte",
+                "VideoCrafter"
             ],
             "test":  [
                 "ModelScope", 
@@ -50,7 +59,7 @@ if __name__ == "__main__":
                 "Crafter",
                 "Lavie", 
                 "Sora", 
-                "WildScrape"
+                "WildScrape",
             ]
         },
     }
