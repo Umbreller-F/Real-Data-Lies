@@ -200,3 +200,4 @@ models/VideoMAEv2_Base/
 data_analysis/LSVQ_labels/HQ_train.txt
 data_analysis/LSVQ_labels/HQ_train1.txt
 data_analysis/results/joint_sampling/InternVidAES-Top1K.txt
+ckpts/open_clip_pytorch_model.bin

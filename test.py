@@ -7,6 +7,8 @@ from models.videomaev2 import VideoMAEv2
 from models.demamba import XCLIP_DeMamba, CLIP_DeMamba
 from models.dino import DINOv2, DINOv3
 from models.npr import resnet50
+from models.safe import resnet50_SAFE
+from models.aide import AIDE
 from utils.train_utils import *
 from torch.utils.data import DataLoader
 from loguru import logger
@@ -51,6 +53,10 @@ def test(cfg: DictConfig):
         model = DINOv3('dinov3-convnext-large')
     elif cfg.model.name == "NPR":
         model = resnet50()
+    elif cfg.model.name == "SAFE":
+        model = resnet50_SAFE()
+    elif cfg.model.name == "AIDE":
+        model = AIDE()
     else:
         raise NotImplementedError(f"Model {cfg.model.name} is not supported.")
     logger.info(f"Model's processor:\n{model.processor}")
