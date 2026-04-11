@@ -88,6 +88,9 @@ class ImageDataset(Dataset):
                 else:
                     max_sample_rate = max(1, (len(frames) - 1) // (self.num_frames - 1))
                     sampled_frames = frames[::max_sample_rate][:self.num_frames]
+                if self.processor == 'AIDE-specific':
+                    if not os.path.exists(sampled_frames[0].replace('.jpg', '.pt').replace('video_frames', 'dct_features')):
+                        continue
                 self.image_paths.extend(sampled_frames)
         logger.success(f"[{self.dataset_name} / {self.mode} / {len(self)} images / {len(self.video_dirs)} videos / {self.generation_model}]")
             
