@@ -190,22 +190,17 @@ def test(cfg: DictConfig):
 
 # region Test Func
 @torch.no_grad()
-def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, device = torch.device('cuda'), frames_per_video = 8, Q_attr = 0):
+def test_on_dataloader(model, test_dataloader, feature_type, best_threshold, device = torch.device('cuda'), frames_per_video = 8):
     model.eval()
     all_labels = []
     all_predicted = []
     all_raw_preds = []
 
     for batch in tqdm(test_dataloader, desc="Evaluating", leave=False, ncols=100):
-        if Q_attr == 0:
-            inputs, labels, sample_ids = batch
-            inputs, labels = inputs.float().to(device), labels.to(device)
+        inputs, labels, sample_ids = batch
+        inputs, labels = inputs.float().to(device), labels.to(device)
 
-            logits = model(inputs)
-        elif Q_attr in [1, 2]:
-            inputs, labels, video_ids, Q_attr_scores = batch
-            inputs, labels, Q_attr_scores = inputs.float().to(device), labels.float().to(device), Q_attr_scores.float().to(device)
-            logits = model(inputs, Q_attr_scores)
+        logits = model(inputs)
 
         output_pred = logits[:,0].sigmoid().cpu()
         predicted = output_pred > best_threshold
