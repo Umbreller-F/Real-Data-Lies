@@ -278,3 +278,70 @@ def val_dMMD(model, val_dataloaders, ref_len, global_step, writer, ref_dataloade
             for header, value in zip(headers[2:], result[2:]):
                 writer.add_scalar(f"val/{fake}_{real}_{header}", value, global_step=global_step)
     return results
+
+# region Cross-dataset result matrix
+MATRIX_REAL_MODELS = ["Youku", "MSR-VTT", "Vript", "HD-VG-130M", "RealVSR", "UltraVideo"]
+MATRIX_REAL_DISPLAY = {"Youku": "Youku-mPLUG"}
+
+def save_cross_dataset_matrix(results, headers, csv_path, metric="AUROC",
+                              real_models=None, name_sep="/"):
+    """Save an extra fake-generator x real-dataset metric matrix CSV.
+
+    results: rows like [f"{real}{name_sep}{fake}", <metrics aligned with headers[1:]>].
+    Rows of the matrix are fake generation models, columns are the selected real
+    test sets; the right-most column and the bottom row hold row/column means.
+    """
+    import pandas as pd
+    if real_models is None:
+        real_models = MATRIX_REAL_MODELS
+    metric_idx = headers.index(metric)
+
+    matrix = {}
+    fake_order = []
+    for row in results:
+        name = row[0]
+        parts = name.split(name_sep, 1) if name_sep == "/" else name.rsplit(name_sep, 1)
+        if len(parts) != 2:
+            continue
+        real_model, fake_model = parts
+        if real_model not in real_models or fake_model.endswith("-Avg"):
+            continue
+        if fake_model not in matrix:
+            matrix[fake_model] = {}
+            fake_order.append(fake_model)
+        matrix[fake_model][real_model] = row[metric_idx]
+
+    present_reals = [rm for rm in real_models if any(rm in matrix[fm] for fm in fake_order)]
+    if not fake_order or not present_reals:
+        logger.warning(f"No test results matched matrix real models {real_models}, skip saving matrix.")
+        return
+
+    table = []
+    col_values = {rm: [] for rm in present_reals}
+    for fm in fake_order:
+        row = [fm]
+        vals = []
+        for rm in present_reals:
+            value = matrix[fm].get(rm)
+            row.append(value)
+            if value is not None:
+                vals.append(value)
+                col_values[rm].append(value)
+        row.append(sum(vals) / len(vals) if vals else None)
+        table.append(row)
+    avg_row = ["Avg"]
+    for rm in present_reals:
+        vals = col_values[rm]
+        avg_row.append(sum(vals) / len(vals) if vals else None)
+    all_vals = [v for vals in col_values.values() for v in vals]
+    avg_row.append(sum(all_vals) / len(all_vals) if all_vals else None)
+    table.append(avg_row)
+
+    columns = ["Fake \\ Real"] + [MATRIX_REAL_DISPLAY.get(rm, rm) for rm in present_reals] + ["Avg"]
+    df = pd.DataFrame(table, columns=columns)
+    df = df.applymap(lambda x: "" if x is None or (isinstance(x, float) and pd.isna(x))
+                     else (f"{100*x:.2f}" if isinstance(x, (int, float)) else x))
+    matrix_path = csv_path.replace(".csv", "-matrix.csv")
+    df.to_csv(matrix_path, index=False, header=True)
+    logger.success(f"Cross-dataset {metric} matrix saved to {matrix_path}.")
+# endregion

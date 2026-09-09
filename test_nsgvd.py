@@ -1,6 +1,6 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA
+from data.dataset_split import RDL
 from omegaconf import DictConfig
 from models.deep_mmd import deep_MMD
 from models.tall import SingleSwinBlockDiscriminator
@@ -17,7 +17,7 @@ import copy
 import os
 import pandas as pd
 
-@hydra.main(config_path="configs/nsg-vd-mp-224x224", config_name="model-test.yaml", version_base=None)
+@hydra.main(config_path="configs/nsg-vd-224x224", config_name="test.yaml", version_base=None)
 def main(cfg: DictConfig):
     # Setup Logging
     log_dir = cfg.log_path
@@ -52,23 +52,14 @@ def main(cfg: DictConfig):
     # endregion
     
     # region Data
-    if cfg.data.dataset_name == "GenVideo":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_PIKA
-        elif cfg.data.generation_model == "SEINE":
-            generation_models = GENVIDEO_SEINE
-    elif cfg.data.dataset_name == "GenVideo-Youku":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_Y_PIKA
-    elif cfg.data.dataset_name == "RealDist":
-        if cfg.data.generation_model == "Pika":
-            generation_models = REALDIST_PIKA
+    if cfg.data.dataset_name == "RDL":
+        generation_models = RDL
     else:
-        raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
+        raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for testing.")
 
     ref_dataloader = get_ref_dataloader(cfg.data, 
                                     cfg.data.ref_model,
-                                    mode="ref",
+                                    mode=cfg.data.ref_mode,
                                     resolution_size=cfg.data.resolution_size)
     test_dataloaders = {}
     for fake_model in generation_models["fake"]["test"]:
@@ -157,6 +148,8 @@ def main(cfg: DictConfig):
     df_avg = df_avg.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
     df_avg.to_csv(avg_path, index=False, header=True)
     logger.success(f"Test average results saved to {avg_path}.")
+    # Save cross-dataset metric matrix (rows: fake generators, columns: selected real test sets)
+    save_cross_dataset_matrix(results, headers, csv_path, metric="AUROC", name_sep="-")
 
     # Print results in table format
     logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))

@@ -183,6 +183,8 @@ def test(cfg: DictConfig):
     df_avg = df_avg.applymap(lambda x: f"{100*x:.2f}" if isinstance(x, float) else x)
     df_avg.to_csv(avg_path, index=False, header=True)
     logger.success(f"Test average results saved to {avg_path}.")
+    # Save cross-dataset metric matrix (rows: fake generators, columns: selected real test sets)
+    save_cross_dataset_matrix(results, headers, csv_path, metric="AUROC", name_sep="/")
 
     # Print results in table format
     logger.info("\n" + tabulate(final_results, headers=headers, tablefmt="grid"))
