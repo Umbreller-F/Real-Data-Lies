@@ -16,9 +16,9 @@ class VideoMAEv2(nn.Module):
                  output_dim: int = 1,
                  dropout_rate: float = 0.1):
         super().__init__()
-        config = AutoConfig.from_pretrained(f"OpenGVLab/{model_type}", trust_remote_code=True, local_files_only=True)
-        self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_type}", local_files_only=True)
-        self.model = AutoModel.from_pretrained(f"OpenGVLab/{model_type}", config=config, trust_remote_code=True, local_files_only=True)
+        config = AutoConfig.from_pretrained(f"OpenGVLab/{model_type}", trust_remote_code=True)
+        self._processor = VideoMAEImageProcessor.from_pretrained(f"OpenGVLab/{model_type}")
+        self.model = AutoModel.from_pretrained(f"OpenGVLab/{model_type}", config=config, trust_remote_code=True)
         embed_dim = self.model.config.model_config['embed_dim']
         # Replace classification head with custom binary classifier
         self.classifier = nn.Sequential(

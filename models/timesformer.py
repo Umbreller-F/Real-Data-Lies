@@ -37,13 +37,13 @@ class TimeSformer(nn.Module):
         
         if pretrained:
             logger.info(f"Loading pretrained Timesformer model: {self.model_name}.")
-            self.model = TimesformerForVideoClassification.from_pretrained(self.model_name, local_files_only=True)
+            self.model = TimesformerForVideoClassification.from_pretrained(self.model_name)
         else:
             logger.info(f"Initializing Timesformer model from scratch.")
-            config = TimesformerConfig.from_pretrained(self.model_name, local_files_only=True)
+            config = TimesformerConfig.from_pretrained(self.model_name)
             self.model = TimesformerForVideoClassification(config)
         
-        self._processor = AutoImageProcessor.from_pretrained(self.model_name, use_fast=False, local_files_only=True)
+        self._processor = AutoImageProcessor.from_pretrained(self.model_name, use_fast=False)
 
         # Get original feature dimension
         original_hidden_size = self.model.config.hidden_size

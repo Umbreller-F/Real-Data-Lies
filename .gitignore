@@ -183,6 +183,7 @@ Baselines/
 nohup_logs/
 *.csv
 *.sh
+!scripts/**/*.sh
 train.pid
 command
 Wan2.2_VAE.pth
@@ -201,3 +202,4 @@ data_analysis/LSVQ_labels/HQ_train.txt
 data_analysis/LSVQ_labels/HQ_train1.txt
 data_analysis/results/joint_sampling/InternVidAES-Top1K.txt
 ckpts/open_clip_pytorch_model.bin
+TODO.md

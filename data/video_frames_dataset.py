@@ -30,7 +30,7 @@ class VideoFramesDataset(Dataset):
                  ids_file: str=None):
         super()
         assert mode in ["train", "test", "val", "ref"], f"Mode {mode} is not supported"
-        assert dataset_name in ["GenVideo", "RealDist", "myvideos"], f"Dataset {dataset_name} is not supported"
+        assert dataset_name in ["GenVideo", "RealDist", "myvideos", "RDL"], f"Dataset {dataset_name} is not supported"
         assert os.path.exists(data_path), f"Data path {data_path} does not exist"
         assert len_load is None or len_load > 0, f"len_load should be None or positive integer"
         
@@ -164,7 +164,7 @@ def process_video(args):
                 f"ffmpeg -i {video_path} "
                 f"-vf select='not(mod(n\,{frame_interval}))',setpts=N/FRAME_RATE/TB "
                 f"-vframes {num_frames} {output_dir}/frame%d.jpg"
-                # f" > /dev/null 2>&1"
+                f" > /dev/null 2>&1"
             )
             ret = os.system(cmd)
         except Exception as e:

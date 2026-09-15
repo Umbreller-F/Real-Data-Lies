@@ -109,6 +109,9 @@ def get_generation_models(dataset_name):
                 ]
             },
         }
+    elif dataset_name == "RDL":
+        from data.dataset_split import RDL
+        return RDL
     else:
         raise ValueError(f"Dataset {dataset_name} is not supported")
 
@@ -154,8 +157,8 @@ def get_all_generation_models(dataset_name):
     return [
         model 
         for category in ["fake", "real"] 
-        for split in ["train", "test"] 
-        for model in generation_models[category][split]
+        for split in ["train", "val", "test"] 
+        for model in generation_models[category].get(split, [])
     ]
 
 def get_label_from_generation_model(generation_model):

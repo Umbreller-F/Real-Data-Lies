@@ -37,7 +37,7 @@ class XCLIP_DeMamba(nn.Module):
         self, channel_size=768, class_num=1
     ):
         super(XCLIP_DeMamba, self).__init__()
-        self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True)
+        self.encoder = XCLIPVisionModel.from_pretrained("microsoft/xclip-base-patch16")
         blocks = []
         channel = 768
         self.fusing_ratios = 1
@@ -49,7 +49,7 @@ class XCLIP_DeMamba(nn.Module):
         self.fc_norm2 = nn.LayerNorm(768)
         self.initialize_weights(self.fc1)
         self.dropout = nn.Dropout(p=0.0)
-        self._processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16", local_files_only=True).image_processor
+        self._processor = XCLIPProcessor.from_pretrained("microsoft/xclip-base-patch16").image_processor
 
 
     def initialize_weights(self, module):

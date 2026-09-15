@@ -9,7 +9,9 @@ timm==1.0.21
 transformers==4.57.3
 einops==0.8.1
 open_clip_torch==3.3.0
-clip @ git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1
+# OpenAI CLIP is installed separately (see README): its setup.py imports pkg_resources,
+# so it must be built with --no-build-isolation against setuptools<81 below.
+setuptools<81
 kornia==0.8.2
 
 # SAFE / AIDE specific
@@ -23,6 +25,7 @@ numpy==2.2.6
 pandas==2.3.3
 scipy==1.15.3
 scikit-learn==1.7.2
+scikit-image==0.25.2  # required by vidaug but not declared by it
 opencv-python==4.12.0.88
 Pillow==11.3.0
 decord==0.6.0
@@ -37,6 +40,7 @@ tqdm==4.70.0
 # Experiment framework
 hydra-core==1.3.2
 omegaconf==2.3.0
+easydict==1.13  # required by VideoMAEv2's remote code (OpenGVLab/VideoMAEv2-*)
 loguru==0.7.3
 tabulate==0.9.0
 torchinfo==1.8.0

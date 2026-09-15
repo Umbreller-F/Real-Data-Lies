@@ -31,7 +31,7 @@ trainer:
 
 data:
   data_path: "../Data/${data.dataset_name}"
-  dataset_name: "GenVideo"
+  dataset_name: "RDL"
   feature_type: velocity
   num_workers: 16
   num_frames: 8

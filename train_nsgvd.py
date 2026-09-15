@@ -1,6 +1,6 @@
 from utils.experiment_utils import set_seed
 from data.utils import get_generation_models
-from data.dataset_split import GENVIDEO_PIKA, GENVIDEO_SEINE, REALDIST_PIKA, GENVIDEO_Y_PIKA
+from data.dataset_split import RDL
 from omegaconf import DictConfig
 from models.deep_mmd import deep_MMD
 from models.discriminators import SWINDiscriminator
@@ -63,11 +63,10 @@ def main(cfg: DictConfig):
     else:
         raise ValueError(f"Unsupported task type: {cfg.task_type}")
     
-    if cfg.data.dataset_name == "GenVideo":
-        if cfg.data.generation_model == "Pika":
-            generation_models = GENVIDEO_PIKA
-        elif cfg.data.generation_model == "SEINE":
-            generation_models = GENVIDEO_SEINE
+    if cfg.data.dataset_name == "RDL":
+        generation_models = RDL
+    else:
+        raise NotImplementedError(f"Dataset {cfg.data.dataset_name} is not supported for training.")
 
     filter_frames = cfg.data.filter_frames if "filter_frames" in cfg.data else False
     # train data

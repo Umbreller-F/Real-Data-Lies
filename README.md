@@ -37,13 +37,49 @@ pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorc
 
 # Install the remaining dependencies
 pip install -r requirements.txt
+
+# Install OpenAI CLIP from GitHub (must be built without build isolation:
+# its setup.py imports pkg_resources, which setuptools>=81 — used by pip's
+# isolated build env — no longer provides)
+pip install "clip @ git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1" --no-build-isolation
 ```
 
 Notes:
 
-- `requirements.txt` was exported from the authors' environment and pruned to the packages actually imported by this project. `clip` is installed from the OpenAI GitHub repository.
+- `requirements.txt` was exported from the authors' environment and pruned to the packages actually imported by this project. `clip` is installed separately from the OpenAI GitHub repository as shown above.
 - The data analysis pipeline relies on a vendored copy of [DOVER](https://github.com/QualityAssessment/DOVER) under `data_analysis/DOVER`, which has its own `requirements.txt` (install it only if you plan to re-run the VQA analysis).
-- Pretrained backbones (TimeSformer, VideoMAEv2, DINOv2/v3, DeMamba, etc.) are downloaded automatically from Hugging Face / timm on first use. AIDE additionally requires the two backbone files already provided in `ckpts/` (`resnet50-19c8e357.pth`, `open_clip_pytorch_model.bin`).
+- If `huggingface.co` is unreachable from your network, set `HF_ENDPOINT=https://hf-mirror.com` before running the scripts so automatic downloads go through the mirror.
+
+## Pretrained Weights
+
+Most detectors download their backbones automatically from Hugging Face or PyTorch Hub on first use (cached under `~/.cache/huggingface` / `~/.cache/torch`):
+
+| Detector | Pretrained weights | Source | Download |
+| --- | --- | --- | --- |
+| TimeSformer-ssv2 | `facebook/timesformer-base-finetuned-ssv2` | Hugging Face | automatic |
+| TimeSformer-k400 | `facebook/timesformer-base-finetuned-k400` | Hugging Face | automatic |
+| TimeSformer-scratch | — (random initialization) | — | — |
+| VideoMAEv2 | `OpenGVLab/VideoMAEv2-Base` | Hugging Face | automatic |
+| DeMamba | `microsoft/xclip-base-patch16` | Hugging Face | automatic |
+| DINOv2 | `facebook/dinov2-large` | Hugging Face | automatic |
+| DINOv3 | `facebook/dinov3-vitl16-pretrain-lvd1689m` | Hugging Face (**gated**) | automatic, after accepting the license on the model page and logging in with `huggingface-cli login` |
+| NPR | — (custom truncated ResNet-style backbone, trained from scratch) | — | — |
+| SAFE | — (custom truncated ResNet-style backbone, trained from scratch) | — | — |
+| AIDE | ResNet-50 + OpenCLIP ConvNeXt-XXLarge | see below | **manual** |
+| NSG-VD | guided-diffusion `256x256_diffusion_uncond.pt` (feature extractor only; discriminator trained from scratch) | [OpenAI guided-diffusion](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt) | **manual** → `../Checkpoints/`; our trained NSG-VD checkpoints are provided in `ckpts/` for evaluation |
+
+AIDE is the only detector that requires manually downloaded backbones. These are the two files officially specified by the AIDE author (see [AIDE issue #8](https://github.com/shilinyan99/AIDE/issues/8)); we do **not** bundle them in this repo — please download them yourself and place both under `ckpts/`:
+
+| File | Official source |
+| --- | --- |
+| `ckpts/resnet50-19c8e357.pth` | https://download.pytorch.org/models/resnet50-19c8e357.pth |
+| `ckpts/open_clip_pytorch_model.bin` | https://huggingface.co/laion/CLIP-convnext_xxlarge-laion2B-s34B-b82K-augreg-soup/tree/main |
+
+```bash
+wget -P ckpts https://download.pytorch.org/models/resnet50-19c8e357.pth
+wget -P ckpts https://huggingface.co/laion/CLIP-convnext_xxlarge-laion2B-s34B-b82K-augreg-soup/resolve/main/open_clip_pytorch_model.bin
+# or via the mirror: https://hf-mirror.com/laion/CLIP-convnext_xxlarge-laion2B-s34B-b82K-augreg-soup/resolve/main/open_clip_pytorch_model.bin
+```
 
 ## Dataset
 
@@ -55,23 +91,44 @@ Notes:
 | Val | Kinetics-400, InternVid-AES, Youku, OpenVidHD | SEINE (+ candidate generators for expansion: Pika, OpenSora, SD, SVD, I2VGEN_XL, DynamicCrafter, Latte, VideoCrafter) |
 | Test | InternVid-AES, RealVSR, MSR-VTT, Youku, Kinetics-400, Vript, HD-VG-130M, OpenVidHD, UltraVideo | ModelScope, MorphStudio, MoonValley, Show_1, Gen2, Crafter, Lavie, Sora, WildScrape |
 
-The exact split used in our experiments is defined by the text files in `assets/split/` (`<label>/<source>/{train,val,test}_ids.txt`). **These files are part of the benchmark** — please keep them unchanged for reproducibility.
+The exact split used in our experiments is defined by the text files in `assets/split/` (`<label>/<source>/{train,val,test}_ids.txt`). **These files are part of the benchmark** — please keep them unchanged for reproducibility. For each real/fake source we use at most **10,000 videos for training** and **1,000 for validation / testing**; sources with fewer available videos are used in full (e.g. the Sora test set has 56 videos).
 
 ### Download
 
-> **TODO (authors)**: fill in download links before release.
+| Data | Link | Provider |
+| --- | --- | --- |
+| **Real** | | |
+| Kinetics-400 | [kinetics-dataset](https://github.com/cvdfoundation/kinetics-dataset) | Official release |
+| InternVid-AES | [umbreller/RDL-InternVid-AES](https://huggingface.co/datasets/umbreller/RDL-InternVid-AES) | **Released by us** (academic research only) |
+| Youku-mPLUG | [GenVideo](https://modelscope.cn/datasets/cccnju/Gen-Video) | Re-distributed via the GenVideo benchmark |
+| OpenVidHD | [OpenVid-1M](https://huggingface.co/datasets/nkp37/OpenVid-1M) | Official release |
+| Vript | [GenVidBench](https://huggingface.co/datasets/jian-0/GenVidBench) | Re-distributed via the GenVidBench benchmark |
+| RealVSR | [RealVSR](https://github.com/IanYeung/RealVSR) | Official release |
+| MSR-VTT | [GenVideo](https://modelscope.cn/datasets/cccnju/Gen-Video) | Re-distributed via the GenVideo benchmark |
+| HD-VG-130M | [GenVidBench](https://huggingface.co/datasets/jian-0/GenVidBench) | Re-distributed via the GenVidBench benchmark |
+| UltraVideo | [UltraVideo](https://huggingface.co/datasets/APRIL-AIGC/UltraVideo) | Official release |
+| **Fake** | | |
+| 19 generators (Pika, SEINE, Sora, ...) | [GenVideo](https://modelscope.cn/datasets/cccnju/Gen-Video) | Collected and released by the GenVideo benchmark |
 
-- Real videos: collected from the official releases of Kinetics-400, InternVid, Youku, OpenVidHD, Vript, RealVSR, MSR-VTT, HD-VG-130M and UltraVideo. Links: *TBD*.
-- InternVid-AES subset: to guarantee reproducibility, we will release our own crawled version (selected with `assets/RealDist-InternVid-18M-aes.jsonl`) on Hugging Face. Link: *TBD*.
-- Fake videos: generated with 19 open-source / commercial generation models. Links: *TBD*.
+Note that several real sources are re-distributions via third-party benchmarks rather than the original official releases, and the fake videos were collected and released by the GenVideo benchmark (see the Provider column). The InternVid-AES subset is our own collected version (selected with `assets/RealDist-InternVid-18M-aes.jsonl`): 12,000 videos split into 20 GB tar volumes, for academic research use only — see the dataset page for extraction instructions.
 
 ### Directory layout
 
-By default the configs expect the dataset at `../Data/RDL` relative to the repository root. We recommend creating a symbolic link there pointing to your actual data location (e.g. `ln -s /path/to/Data/RDL ../Data/RDL`); alternatively, override the path at runtime with `data.data_path=...`. Organize it as follows:
+By default the configs expect the dataset at `../Data/RDL` relative to the repository root. We recommend creating a symbolic link there pointing to your actual data location (e.g. `ln -s /path/to/Data/RDL ../Data/RDL`); alternatively, override the path at runtime with `data.data_path=...`.
+
+After downloading the raw videos, **copy the benchmark split files into the dataset root** so the dataloaders can find them:
+
+```bash
+cp -r assets/split ../Data/RDL/split
+```
+
+Then copy the videos listed in the split files into `video/<label>/<Source>/` — note that this directory is **flat**: train/val/test videos are stored together, with no per-split subdirectories. `extract_frame.py` reads the split files and builds the train/val/test frame directories (`video_frames/.../<mode>/`) by itself. Only the videos referenced by the split files are ever touched; any extra videos placed in the folder are simply ignored (but copying just the listed ones saves disk space).
+
+Then organize the dataset as follows (only `split/` and `video/` are required manually; the rest are produced by the preprocessing steps below):
 
 ```
 Data/RDL/
-├── split/                        # copy of assets/split (train/val/test id lists)
+├── split/                        # copied from assets/split (train/val/test id lists)
 │   ├── real/<Source>/{train,val,test}_ids.txt
 │   └── fake/<Model>/{train,val,test}_ids.txt
 ├── video/                        # raw videos you downloaded
@@ -109,11 +166,30 @@ Features are saved as `.pt` files under `../Data/RDL/dct_features/`.
 
 ### NSG-VD
 
-No manual preprocessing is needed: the NSG-VD dataloader extracts the required fixed-length frame clips into `nsgvd_frames/` on first use.
+No manual preprocessing is needed, but the **first** NSG-VD run performs two on-the-fly extraction steps (both cached and reused afterwards):
+
+1. fixed-length 8-frame clips into `../Data/RDL/nsgvd_frames/`;
+2. diffusion-based score/velocity features into `../Data/RDL/nsg-vd/STEPS_5/` — this step needs the guided-diffusion checkpoint `256x256_diffusion_uncond.pt` at `../Checkpoints/` (see Pretrained Weights).
+
+Expect the first full run (train + all test sets) to take a few hours on a single GPU; later runs reuse the caches and are much faster.
 
 ## Training & Evaluation
 
-Ready-to-use scripts for every detector and quality alignment setting live in `scripts/` (e.g. `scripts/videomaev2/biased.sh`, `scripts/aide/biased.sh`). `scripts/latest_template.sh` documents the pattern:
+### Quick start
+
+> **One command per experiment** — ready-to-use scripts for every detector and quality alignment setting live in `scripts/`. Each script runs **training and full test-set evaluation** end-to-end:
+
+```bash
+bash scripts/demamba/aligned.sh        # DeMamba, Aligned setting
+bash scripts/timesformer-k400/biased.sh  # TimeSformer-K400, Biased setting
+bash scripts/aide/expanded.sh          # AIDE, Expanded setting
+```
+
+The pattern is `scripts/<detector>/<biased|aligned|expanded>.sh`. The only exceptions are **NPR** and **NSG-VD**, which we only evaluate under the Biased setting in our paper, so only `scripts/npr/biased.sh` and `scripts/nsgvd/biased.sh` are provided (NSG-VD also uses its own entry points, see below). All scripts are plain bash — set `CUDA_VISIBLE_DEVICES` in front as needed (e.g. `CUDA_VISIBLE_DEVICES=0 bash scripts/demamba/aligned.sh`).
+
+### Details
+
+All scripts follow the same pattern:
 
 ```bash
 # Train
@@ -139,25 +215,75 @@ python -W ignore test.py \
 ```
 
 - `${MODEL}` ∈ `timesformer-{ssv2,k400,scratch}`, `videomaev2`, `demamba`, `dinov2`, `dinov3`, `npr`, `safe`, `aide`; `${FEATURE_TYPE}` is `video` for video-level models and `image` for frame-level ones (see `configs/`).
-- Quality alignment settings only change the real training/validation sources: Biased → Kinetics-400; Aligned → InternVid-AES; Expanded → InternVid-AES + `data.data_expansion=True`.
+- Quality alignment settings only change the real training/validation sources: 
+  - Biased → Kinetics-400
+  - Aligned → InternVid-AES
+  - Expanded → InternVid-AES + `data.data_expansion=True`.
+
+For example, DeMamba under the Aligned setting (equivalent to `bash scripts/demamba/aligned.sh`):
+
+```bash
+python train.py \
+    --config-path "configs/video-classifier/demamba" \
+    --config-name standard.yaml \
+    experiment_name="aligned-Pika-demamba" \
+    data.train_real_model="InternVid-AES" \
+    data.train_fake_model="Pika" \
+    data.val_real_model="InternVid-AES" \
+    data.val_fake_model="SEINE" \
+    data.data_expansion=False \
+    log_path="./results/logs/video-classifier" \
+    save_ckpt_dir="./results/ckpts/video-classifier/aligned-Pika-demamba/"
+
+python -W ignore test.py \
+    --config-path "configs/video-classifier/demamba" \
+    --config-name test.yaml \
+    experiment_name="aligned-Pika-demamba" \
+    ckpt_path="./results/ckpts/video-classifier/aligned-Pika-demamba/best_auroc_ckpt.pth" \
+    log_path="./results/test/video-classifier"
+```
 - Training logs go to `results/logs/`, checkpoints to `results/ckpts/`, and per-source test metrics to `results/test/`.
 - Each test run saves three CSVs under `results/test/.../<exp_name>/`: `<dataset>.csv` (all real/fake pairs), `<dataset>-avg.csv` (per-real-source averages), and `<dataset>-matrix.csv` — an AUROC matrix over the six real test sets Youku-mPLUG, MSR-VTT, Vript, HD-VG-130M, RealVSR and UltraVideo (rows: fake generators, columns: real sources, with row/column means).
 
-### NSG-VD (standalone scripts)
+### NSG-VD (standalone entry points)
 
-NSG-VD uses its own entry points and configs (`configs/nsg-vd-224x224/`):
+NSG-VD is only evaluated under the **Biased** setting in our paper and uses its own entry points and configs (`configs/nsg-vd-224x224/`). To reproduce, run:
 
 ```bash
-# Train
+bash scripts/nsgvd/biased.sh   # edit VARIANT="d" / "mp" at the top to choose the MMD variant
+```
+
+which is equivalent to:
+
+```bash
+# Train (variant d; use model.is_yy_zero=True for mp)
 python train_nsgvd.py --config-path configs/nsg-vd-224x224 --config-name standard.yaml \
-    experiment_name="standard-Pika-d"
+    experiment_name="standard-Pika-d" \
+    model.is_yy_zero=False
 
 # Test
 python test_nsgvd.py --config-path configs/nsg-vd-224x224 --config-name test.yaml \
-    ckpt_path="ckpts/standard-Pika-d.pth"
+    experiment_name="standard-Pika-d" \
+    model.is_yy_zero=False \
+    ckpt_path="./results/ckpts/nsg-vd/standard-Pika-d/best_ckpt.pth" \
+    log_path="./results/test/nsg-vd/standard-Pika-d"
 ```
 
-Pretrained NSG-VD checkpoints from our experiments (`standard/unbalance` × `Pika/SEINE`, `-d` / `-mp` variants) are provided in `ckpts/`. The test script saves the same three CSVs as `test.py`, including the cross-dataset AUROC matrix.
+NSG-VD requires no external pretrained backbone: the discriminator is trained from scratch. Its score/velocity feature extractor does need the guided-diffusion ImageNet 256×256 unconditional model — download [256x256_diffusion_uncond.pt](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt) and place it at `../Checkpoints/256x256_diffusion_uncond.pt` (relative to the repository root) before the first run. Pretrained NSG-VD checkpoints from our experiments (`standard/unbalance` × `Pika/SEINE`, `-d` / `-mp` variants) are provided in `ckpts/` for direct evaluation. The test script saves the same three CSVs as `test.py`, including the cross-dataset AUROC matrix.
+
+Notes:
+
+- **Variants**: `-d` (`model.is_yy_zero=False`) and `-mp` (`model.is_yy_zero=True`) are the two MMD variants reported in the paper; choose one via `VARIANT` in `scripts/nsgvd/biased.sh` (default `d`).
+- **First run is slow**: the dataloader first extracts 8-frame clips into `Data/RDL/nsgvd_frames/`, then computes diffusion-based score/velocity features for every video, cached under `Data/RDL/nsg-vd/STEPS_5/<label>/<source>/<split>/`. Both caches are reused across variants, reruns and evaluation, so subsequent runs are much faster.
+- **Evaluating the provided checkpoints** directly (no training):
+
+```bash
+python test_nsgvd.py --config-path configs/nsg-vd-224x224 --config-name test.yaml \
+    experiment_name="standard-Pika-d" \
+    model.is_yy_zero=False \
+    ckpt_path="ckpts/standard-Pika-d.pth" \
+    log_path="./results/test/nsg-vd/standard-Pika-d-provided"
+```
 
 ## Data Analysis
 
@@ -192,7 +318,7 @@ RDL-clean/
 │   ├── logs/                         # training logs: {image,video}-classifier/<exp_name>/ (loguru + tensorboard)
 │   ├── test/                         # test results: {image,video}-classifier/<exp_name>/ (RDL.csv, RDL-avg.csv, RDL-matrix.csv)
 │   └── outputs/                      # hydra run directories
-├── scripts/                          # per-model train/eval shell scripts
+├── scripts/                          # per-detector train/eval shell scripts (biased / aligned / expanded)
 ├── utils/                            # training / data / MMD utilities
 ├── extract_frame.py                  # frame extraction (main preprocessing)
 ├── aide_preprocess.py                # batch DCT feature extraction for AIDE
@@ -202,6 +328,35 @@ RDL-clean/
 ├── inference.py                      # single-video inference (TimeSformer)
 └── requirements.txt
 ```
+
+## Acknowledgements
+
+Our benchmark is built upon data from the following sources — we sincerely thank all of them:
+
+- [GenVideo](https://github.com/chenhaoxing/DeMamba) (released together with the DeMamba detector)
+- [GenVidBench](https://github.com/genvidbench/GenVidBench)
+- [MSR-VTT](https://www.microsoft.com/en-us/research/publication/msr-vtt-a-large-video-description-dataset-for-bridging-video-and-language/)
+- [Kinetics-400](https://github.com/cvdfoundation/kinetics-dataset)
+- [InternVid](https://github.com/OpenGVLab/InternVideo/tree/main/Data/InternVid)
+- [Youku-mPLUG](https://github.com/X-PLUG/Youku-mPLUG)
+- [Vript](https://github.com/mutonix/Vript)
+- [OpenVid-1M](https://github.com/NJU-PCALab/OpenVid-1M)
+- [RealVSR](https://github.com/IanYeung/RealVSR)
+- [UltraVideo](https://github.com/xzc-zju/UltraVideo)
+- [HD-VG-130M](https://github.com/daooshee/HD-VG-130M)
+
+We also thank the following open-source projects, from which our detector implementations and analysis tools are adapted:
+
+- [DeMamba](https://github.com/chenhaoxing/DeMamba) (released together with the GenVideo benchmark)
+- [NSG-VD](https://github.com/ZSHsh98/NSG-VD)
+- [DOVER](https://github.com/QualityAssessment/DOVER)
+- [NPR](https://github.com/chuangchuangtan/NPR-DeepfakeDetection)
+- [SAFE](https://github.com/Ouxiang-Li/SAFE)
+- [AIDE](https://github.com/shilinyan99/AIDE)
+- [DINOv2](https://github.com/facebookresearch/dinov2)
+- [DINOv3](https://github.com/facebookresearch/dinov3)
+- [VideoMAEv2](https://github.com/OpenGVLab/VideoMAEv2)
+- [TimeSformer](https://github.com/facebookresearch/TimeSformer)
 
 ## Citation
 

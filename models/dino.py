@@ -18,8 +18,8 @@ class DINOv2(nn.Module):
                  output_dim: int = 1,
                  dropout_rate: float = 0.1):
         super().__init__()
-        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}', local_files_only=True)
-        self.model = AutoModel.from_pretrained(f'facebook/{model_name}', local_files_only=True)
+        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}')
+        self.model = AutoModel.from_pretrained(f'facebook/{model_name}')
         embed_dim = self.model.config.hidden_size
         # Replace classification head with custom binary classifier
         self.classifier = nn.Sequential(
@@ -48,8 +48,8 @@ class DINOv3(nn.Module):
                  output_dim: int = 1,
                  dropout_rate: float = 0.1):
         super().__init__()
-        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
-        self.model = AutoModel.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m', local_files_only=True)
+        self._processor = AutoImageProcessor.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m')
+        self.model = AutoModel.from_pretrained(f'facebook/{model_name}-pretrain-lvd1689m')
         if model_name in ['dinov3-convnext-base', 'dinov3-convnext-large']:
             if model_name == 'dinov3-convnext-base':
                 embed_dim = 1024
