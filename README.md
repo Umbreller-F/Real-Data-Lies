@@ -154,15 +154,15 @@ Edit the `data_path` argument in `extract_frame.py` if your dataset lives elsewh
 
 ### AIDE: DCT feature extraction
 
-AIDE additionally requires DCT features of the frames. The image-path lists are provided in `assets/aide_image_paths/` (relative to the repo root). Run:
+AIDE additionally requires DCT features of the frames, so **run `extract_frame.py` first** — the image-path lists in `assets/aide_image_paths/` enumerate the extracted frames (the 8 sampled frames of every split-listed video) under `video_frames/`. Then run:
 
 ```bash
-python aide_preprocess.py            # batch extraction, 4 workers by default
+python aide_preprocess.py            # batch extraction over all lists, 4 workers by default
 # or for a single list:
 python aide_extract_dct_feature.py assets/aide_image_paths/<Source>_<mode>.txt
 ```
 
-Features are saved as `.pt` files under `../Data/RDL/dct_features/`.
+Features are saved as `.pt` files under `../Data/RDL/dct_features/`, mirroring the `video_frames/` layout. Lists whose features already exist are skipped automatically, so re-running is safe.
 
 ### NSG-VD
 
